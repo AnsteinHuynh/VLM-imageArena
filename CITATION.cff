@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+title: VLM-imageArena
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - alias: ansteinhuynh
+abstract: >-
+  An adaptive A/B image-ranking arena powered by a local vision-language
+  model judge. Candidate images are compared pairwise by a VLM served via
+  llama.cpp llama-server under a pinned-slot game protocol (order-
+  counterbalanced queries with statistical early-exit gates), and a
+  Bradley-Terry maximum-likelihood fit turns the append-only vote log into
+  a reproducible ranking with confidence intervals.
+keywords:
+  - vision-language-model
+  - llm-as-a-judge
+  - bradley-terry
+  - image-quality
+  - llama-cpp
+  - ranking
+license: MIT
+repository-code: "https://github.com/ansteinhuynh/VLM-imageArena"
+date-released: "2026-08-15"

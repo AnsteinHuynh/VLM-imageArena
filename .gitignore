@@ -1,0 +1,27 @@
+# --- user data (never commit) ---
+# in/  : per-tourney candidate images, user-managed
+# out/ : battle logs, dashboards, sidecars (battles.jsonl etc.)
+# notes/: private research notes + archived legacy code
+in/
+out/
+notes/
+
+# --- private: maintainer-only files (never commit) ---
+/AGENTS.md
+src/config_local.py
+
+# --- python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# --- local machine overrides for the .bat launchers ---
+_local_paths.bat
+
+# --- OS cruft ---
+.DS_Store
+Thumbs.db
+desktop.ini

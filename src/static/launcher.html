@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<!-- launcher.html — Version: 1.1.0 (2026-08-14): card click = View (no auto-start),
+     explicit Start button, current-tourney banner, switch tourneys via auto-unload -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VLM-imageArena — Select Tournament</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d1117; color: #c9d1d9;
+    font-family: system-ui, -apple-system, sans-serif;
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  }
+  .container { max-width: 700px; width: 100%; padding: 40px; }
+  .header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  h1 { font-size: 28px; color: #58a6ff; }
+  .header-btns { display: flex; gap: 8px; }
+  .icon-btn {
+    background: #21262d; color: #c9d1d9; border: 1px solid #30363d;
+    border-radius: 6px; padding: 8px 14px; font-size: 13px; cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .icon-btn:hover { border-color: #58a6ff; background: #1c2330; }
+  .icon-btn.green { color: #3fb950; border-color: #3fb95044; }
+  .icon-btn.green:hover { background: #3fb95011; }
+  .subtitle { color: #8b949e; margin-bottom: 24px; font-size: 15px; }
+  .tourney-list { display: flex; flex-direction: column; gap: 10px; }
+  .tourney-card {
+    background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+    padding: 18px 22px; cursor: pointer; transition: border-color 0.15s, transform 0.1s;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .tourney-card:hover { border-color: #58a6ff; transform: translateY(-1px); }
+  .tourney-card:active { transform: translateY(0); }
+  .tourney-info { display: flex; flex-direction: column; gap: 3px; }
+  .tourney-name { font-size: 17px; font-weight: 600; }
+  .tourney-meta { font-size: 13px; color: #8b949e; }
+  .tourney-badge {
+    font-size: 11px; padding: 3px 8px; border-radius: 12px;
+    background: #1f6feb22; color: #58a6ff; border: 1px solid #58a6ff44;
+  }
+  .tourney-badge.resume { background: #3fb95022; color: #3fb950; border-color: #3fb95044; }
+  .start-btn {
+    background: #238636; color: white; border: none; border-radius: 6px;
+    padding: 8px 20px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .start-btn:hover { background: #2ea043; }
+  .view-btn {
+    background: #21262d; color: #58a6ff; border: 1px solid #58a6ff44; border-radius: 6px;
+    padding: 8px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .view-btn:hover { background: #1c2330; border-color: #58a6ff; }
+  .current-banner {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: #3fb95011; border: 1px solid #3fb95044; border-radius: 8px;
+    padding: 14px 18px; margin-bottom: 16px;
+  }
+  .current-banner .cb-text { font-size: 14px; color: #3fb950; font-weight: 600; }
+  .current-banner .cb-sub { font-size: 12px; color: #8b949e; margin-top: 2px; }
+  .return-btn {
+    background: #238636; color: white; border: none; border-radius: 6px;
+    padding: 8px 18px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  .return-btn:hover { background: #2ea043; }
+  .empty { text-align: center; color: #8b949e; padding: 40px; }
+  .loading-overlay {
+    position: fixed; inset: 0; background: rgba(13, 17, 23, 0.92);
+    display: none; align-items: center; justify-content: center; z-index: 999;
+  }
+  .loading-overlay.show { display: flex; }
+  .loading-spinner {
+    width: 48px; height: 48px; border: 4px solid #30363d;
+    border-top: 4px solid #58a6ff; border-radius: 50%;
+    animation: spin 0.8s linear infinite; margin: 0 auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-msg {
+    background: #f8514922; border: 1px solid #f8514944; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 16px; color: #f85149; display: none;
+  }
+  .ok-msg {
+    background: #3fb95022; border: 1px solid #3fb95044; border-radius: 8px;
+    padding: 10px 14px; margin-bottom: 12px; color: #3fb950; font-size: 13px; display: none;
+  }
+
+  /* New tourney modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+    display: none; align-items: center; justify-content: center; z-index: 998;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-card {
+    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    padding: 28px; width: 520px; max-width: 90vw; max-height: 90vh; overflow-y: auto;
+  }
+  .modal-title { font-size: 20px; font-weight: 600; margin-bottom: 16px; }
+  .input-label { font-size: 13px; color: #8b949e; margin-bottom: 6px; margin-top: 16px; }
+  .text-input {
+    width: 100%; background: #0d1117; border: 1px solid #30363d; border-radius: 6px;
+    padding: 10px 14px; color: #c9d1d9; font-size: 15px; font-family: inherit;
+  }
+  .text-input:focus { outline: none; border-color: #58a6ff; }
+  .dropzone {
+    border: 2px dashed #30363d; border-radius: 8px; padding: 32px 20px;
+    text-align: center; margin-top: 8px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  }
+  .dropzone:hover, .dropzone.dragover {
+    border-color: #58a6ff; background: #58a6ff08;
+  }
+  .dropzone-icon { font-size: 32px; margin-bottom: 8px; }
+  .dropzone-text { color: #8b949e; font-size: 14px; }
+  .dropzone-text strong { color: #c9d1d9; }
+  .file-list { margin-top: 12px; display: flex; flex-direction: column; gap: 4px; }
+  .file-item {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #0d1117; border: 1px solid #21262d; border-radius: 4px;
+    padding: 6px 10px; font-size: 13px;
+  }
+  .file-remove { color: #f85149; cursor: pointer; font-size: 16px; }
+  .modal-btns { display: flex; gap: 10px; margin-top: 24px; justify-content: flex-end; }
+  .btn-cancel {
+    background: #21262d; color: #c9d1d9; border: 1px solid #30363d;
+    border-radius: 6px; padding: 10px 20px; font-size: 14px; cursor: pointer;
+  }
+  .btn-cancel:hover { background: #30363d; }
+  .btn-create {
+    background: #238636; color: white; border: none; border-radius: 6px;
+    padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .btn-create:hover { background: #2ea043; }
+  .btn-create:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header-row">
+    <h1>🏟️ VLM-imageArena</h1>
+    <div class="header-btns">
+      <button class="icon-btn" onclick="loadTourneys()" title="Rescan tourney list">🔄 Refresh</button>
+      <button class="icon-btn green" onclick="openNewTourneyModal()" title="Create new tournament">+ New</button>
+    </div>
+  </div>
+  <p class="subtitle">Click a tournament to <strong>view</strong> it (loads paused), or hit <strong>Start</strong> to jump straight into matches. Logs resume automatically.</p>
+  <div id="okMsg" class="ok-msg"></div>
+  <div id="error" class="error-msg"></div>
+  <div id="currentBanner"></div>
+  <div id="tourneyList" class="tourney-list">
+    <div class="empty">Loading available tournaments...</div>
+  </div>
+</div>
+
+<!-- New tourney modal -->
+<div id="newTourneyModal" class="modal-overlay">
+  <div class="modal-card">
+    <div class="modal-title">Create New Tournament</div>
+    <div id="newTourneyError" class="error-msg" style="margin-bottom:12px"></div>
+    <div class="input-label">Tournament name</div>
+    <input type="text" id="tourneyNameInput" class="text-input" placeholder="e.g. logo-contest-v4" autocomplete="off">
+    <div class="input-label">Add images</div>
+    <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+      <div class="dropzone-icon">📁</div>
+      <div class="dropzone-text"><strong>Click to browse</strong> or drag &amp; drop images here</div>
+      <div class="dropzone-text" style="margin-top:4px;font-size:12px">PNG, JPG, WEBP supported</div>
+    </div>
+    <input type="file" id="fileInput" multiple accept=".png,.jpg,.jpeg,.webp" style="display:none">
+    <div id="fileList" class="file-list"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeNewTourneyModal()">Cancel</button>
+      <button class="btn-create" id="createBtn" onclick="createTourney()">Create &amp; Upload</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loading overlay -->
+<div id="overlay" class="loading-overlay">
+  <div style="text-align:center">
+    <div class="loading-spinner"></div>
+    <p style="margin-top:16px;color:#8b949e" id="overlayText">Loading tournament...</p>
+  </div>
+</div>
+
+<script>
+let pendingFiles = [];
+
+// ─── Tourney list ───────────────────────────────────────────
+async function loadTourneys() {
+  document.getElementById('error').style.display = 'none';
+  document.getElementById('okMsg').style.display = 'none';
+  try {
+    const res = await fetch('/state', { cache: 'no-store' });
+    const data = await res.json();
+    const tourneys = data.available_tourneys || [];
+
+    // currently-loaded tourney banner (Return to dashboard)
+    const cb = document.getElementById('currentBanner');
+    if (data.loaded && data.tourney) {
+      const st = data.stats || {};
+      const stateTxt = data.running ? 'match loop running'
+        : (data.finished ? 'finished — revive & continue from the dashboard' : 'paused');
+      cb.innerHTML = `
+        <div class="current-banner">
+          <div>
+            <div class="cb-text">▶ Current: ${data.tourney}</div>
+            <div class="cb-sub">${stateTxt} · ${st.total_matches || 0} matches</div>
+          </div>
+          <button class="return-btn" onclick="window.location.href='/'">↩ Return</button>
+        </div>`;
+    } else {
+      cb.innerHTML = '';
+    }
+
+    const list = document.getElementById('tourneyList');
+
+    if (tourneys.length === 0) {
+      list.innerHTML = '<div class="empty">No tournaments found.<br>Click <strong>+ New</strong> to create one.</div>';
+      return;
+    }
+
+    list.innerHTML = tourneys.map(t => `
+      <div class="tourney-card" data-name="${t.name}" title="Click to view (paused) — no matches start">
+        <div class="tourney-info">
+          <div class="tourney-name">${t.name === 'default' ? 'Default (in/)' : t.name}</div>
+          <div class="tourney-meta">${t.image_count} images${t.has_log ? ' · has battle log (will resume)' : ' · fresh'}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          ${t.has_log ? '<span class="tourney-badge resume">RESUME</span>' : '<span class="tourney-badge">NEW</span>'}
+          <button class="view-btn" data-action="view">👁 View</button>
+          <button class="start-btn" data-action="start">▶ Start</button>
+        </div>
+      </div>
+    `).join('');
+
+    document.querySelectorAll('.tourney-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        const action = btn ? btn.dataset.action : 'view';
+        startTourney(card.dataset.name, action === 'start');
+      });
+    });
+  } catch (e) {
+    document.getElementById('tourneyList').innerHTML =
+      '<div class="empty">Failed to connect to server. Is the arena running?</div>';
+  }
+}
+
+async function startTourney(name, autostart) {
+  const overlay = document.getElementById('overlay');
+  document.getElementById('overlayText').textContent = autostart
+    ? 'Starting tournament...' : 'Loading tournament (view mode)...';
+  overlay.classList.add('show');
+  document.getElementById('error').style.display = 'none';
+  const attempt = () => fetch(autostart ? '/start' : '/load', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  try {
+    let res = await attempt();
+    if (res.status === 409) {
+      // another tourney is loaded — unload it (graceful stop if needed) and retry
+      document.getElementById('overlayText').textContent = 'Switching tournament...';
+      const u = await fetch('/unload', { method: 'POST' });
+      if (!u.ok) {
+        let msg = 'Cannot switch while the match loop is finishing — retry in a moment';
+        try { const e2 = await u.json(); msg = e2.detail || msg; } catch (_) {}
+        throw new Error(msg);
+      }
+      res = await attempt();
+    }
+    if (res.ok) {
+      await new Promise(r => setTimeout(r, 1200));
+      window.location.href = '/';
+    } else {
+      const err = await res.json();
+      throw new Error(err.detail || 'Failed to load');
+    }
+  } catch (e) {
+    overlay.classList.remove('show');
+    const errEl = document.getElementById('error');
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+  }
+}
+
+// ─── New tourney modal ──────────────────────────────────────
+function openNewTourneyModal() {
+  document.getElementById('newTourneyModal').classList.add('show');
+  document.getElementById('tourneyNameInput').focus();
+}
+function closeNewTourneyModal() {
+  document.getElementById('newTourneyModal').classList.remove('show');
+  document.getElementById('tourneyNameInput').value = '';
+  pendingFiles = [];
+  renderFileList();
+  document.getElementById('newTourneyError').style.display = 'none';
+}
+
+function renderFileList() {
+  const el = document.getElementById('fileList');
+  if (pendingFiles.length === 0) { el.innerHTML = ''; return; }
+  el.innerHTML = pendingFiles.map((f, i) => `
+    <div class="file-item">
+      <span>${f.name} <span style="color:#8b949e">(${(f.size/1024).toFixed(0)} KB)</span></span>
+      <span class="file-remove" onclick="removeFile(${i})">✕</span>
+    </div>
+  `).join('');
+}
+function removeFile(idx) {
+  pendingFiles.splice(idx, 1);
+  renderFileList();
+}
+
+// File input
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  for (const f of e.target.files) {
+    if (!pendingFiles.some(p => p.name === f.name && p.size === f.size))
+      pendingFiles.push(f);
+  }
+  renderFileList();
+  e.target.value = '';
+});
+
+// Drag & drop
+const dropzone = document.getElementById('dropzone');
+dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  for (const f of e.dataTransfer.files) {
+    const ext = f.name.split('.').pop().toLowerCase();
+    if (['png','jpg','jpeg','webp'].includes(ext) && !pendingFiles.some(p => p.name === f.name && p.size === f.size))
+      pendingFiles.push(f);
+  }
+  renderFileList();
+});
+
+async function createTourney() {
+  const name = document.getElementById('tourneyNameInput').value.trim();
+  const errEl = document.getElementById('newTourneyError');
+  const btn = document.getElementById('createBtn');
+  errEl.style.display = 'none';
+
+  if (!name) { errEl.textContent = 'Enter a tournament name.'; errEl.style.display = 'block'; return; }
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(name)) {
+    errEl.textContent = 'Invalid name. Use letters, digits, underscore, dash only.';
+    errEl.style.display = 'block'; return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+
+  try {
+    // Create folder
+    let res = await fetch('/create_tourney', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Failed to create folder');
+    }
+
+    // Upload files (if any)
+    if (pendingFiles.length > 0) {
+      btn.textContent = 'Uploading ' + pendingFiles.length + ' files...';
+      const formData = new FormData();
+      formData.append('tourney', name);
+      for (const f of pendingFiles) formData.append('files', f);
+      res = await fetch('/upload_images', { method: 'POST', body: formData });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Upload failed');
+      }
+      const result = await res.json();
+      if (result.uploaded.length === 0) {
+        errEl.textContent = 'Folder created, but no valid images were uploaded. Supported: PNG, JPG, WEBP.';
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Create & Upload';
+        return;
+      }
+    }
+
+    closeNewTourneyModal();
+    btn.disabled = false;
+    btn.textContent = 'Create & Upload';
+
+    // Show success + refresh list
+    const okEl = document.getElementById('okMsg');
+    okEl.textContent = '✓ Tournament "' + name + '" created' +
+      (pendingFiles.length > 0 ? ' with ' + pendingFiles.length + ' image(s)' : '') + '. Drop more images into in/' + name + '/ or click Start.';
+    okEl.style.display = 'block';
+    loadTourneys();
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Create & Upload';
+  }
+}
+
+// Close modal on outside click
+document.getElementById('newTourneyModal').addEventListener('click', (e) => {
+  if (e.target === document.getElementById('newTourneyModal')) closeNewTourneyModal();
+});
+
+// Enter key creates tourney
+document.getElementById('tourneyNameInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') createTourney();
+});
+
+loadTourneys();
+</script>
+</body>
+</html>

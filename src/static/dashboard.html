@@ -1,0 +1,2368 @@
+<!DOCTYPE html>
+<!-- dashboard.html — Version: 2.5.0 (2026-08-14 v3): engine/display honesty tags
+     (⚙ = read by the ranking engine, ◌ = display only). Earlier: 2.4.0 game
+     stats, revive/hold, finish celebration, launcher nav, vote-credit chips -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>VLM Image Arena — Live</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel2: #1c2128;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --dim: #8b949e;
+    --blue: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --orange: #f0883e;
+    --purple: #bc8cff;
+    --mono: 'SF Mono', 'Consolas', 'Cascadia Mono', monospace;
+    --sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    overflow: hidden;
+  }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 5px; border: 2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover { background: #3d444d; }
+
+  .app {
+    display: grid;
+    grid-template-columns: 240px 1fr 340px;
+    height: 100vh;
+    gap: 0;
+  }
+
+  /* ---------- panels ---------- */
+  aside { background: var(--panel); overflow-y: auto; }
+  .left { border-right: 1px solid var(--border); padding: 14px 12px; }
+  .right { border-left: 1px solid var(--border); padding: 12px 10px; }
+  main {
+    overflow: auto;
+    padding: 14px 18px 40px;
+    background: var(--bg);
+  }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin: 16px 0 8px;
+  }
+  .section-label:first-child { margin-top: 0; }
+
+  /* ---------- left: title / phase ---------- */
+  .tourney-title {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.25;
+    word-break: break-word;
+    margin: 0;
+  }
+  .conn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--green);
+    margin-top: 4px;
+    font-family: var(--mono);
+  }
+  .conn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .conn.reconnect { color: var(--yellow); }
+  .conn.reconnect .dot { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); animation: blink 1s infinite; }
+  .conn.paused { color: var(--yellow); }
+  .conn.paused .dot { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+  .conn.done { color: var(--green); }
+  .conn.done .dot { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  @keyframes blink { 50% { opacity: .3; } }
+
+  .phase-box {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--blue);
+    border-radius: 6px;
+    background: var(--panel2);
+  }
+  .phase-box .ph-label { font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--dim); }
+  .phase-box .ph-text { font-size: 13px; font-weight: 600; margin-top: 3px; line-height: 1.35; word-break: break-word; }
+  .phase-box .ph-text .ph-pend { color: var(--yellow); font-weight: 500; }
+  .phase-box .ph-text .ph-pend.ok { color: var(--green); }
+  .phase-box.ph-rr     { border-left-color: var(--blue); }
+  .phase-box.ph-greedy { border-left-color: var(--green); }
+  .phase-box.ph-pivot  { border-left-color: var(--purple); }
+  .phase-box.ph-tie    { border-left-color: var(--yellow); }
+  .phase-box.ph-idle   { border-left-color: var(--dim); }
+
+  .paused-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: 8px;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: var(--yellow);
+    border: 1px solid rgba(210,153,34,.6);
+    background: rgba(210,153,34,.12);
+    vertical-align: 1px;
+  }
+
+  /* ---------- stats ---------- */
+  .stat-group { margin-bottom: 4px; }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    padding: 6px 0;
+    font-size: 12px;
+  }
+  .stat-row .k { color: var(--dim); white-space: nowrap; }
+  .stat-row .v { font-family: var(--mono); font-weight: 600; color: var(--text); text-align: right; }
+  .stat-row .v.green { color: var(--green); }
+  .stat-row .v.red   { color: var(--red); }
+  .stat-row .v.warn  { color: var(--yellow); }
+  .stat-row .sub { font-size: 11px; color: var(--dim); font-family: var(--mono); }
+  .stat-divider { border: 0; border-top: 1px solid var(--border); margin: 6px 0; }
+
+  /* diagnostics cards */
+  .diag-card {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 10px;
+    margin-top: 6px;
+  }
+  .diag-card .d-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .4px;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  .diag-card .d-num {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 2px 0 1px;
+    line-height: 1.1;
+  }
+  .diag-card .d-num.ok { color: var(--green); }
+  .diag-card .d-num.warn { color: var(--yellow); }
+  .diag-card .d-hint {
+    font-size: 10px;
+    color: var(--dim);
+    line-height: 1.35;
+  }
+
+  .tiebar { margin-top: 5px; }
+  .tiebar .track { height: 5px; background: #21262d; border-radius: 3px; overflow: hidden; }
+  .tiebar .fill { height: 100%; background: var(--yellow); border-radius: 3px; transition: width .4s; }
+  .tiebar .tie-nums { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; color: var(--dim); margin-top: 3px; }
+  .vram-bar { margin: 4px 0 2px; }
+  .vram-track { height: 6px; background: #21262d; border-radius: 3px; overflow: hidden; }
+  .vram-fill { height: 100%; background: var(--green); border-radius: 3px; transition: width .4s, background .4s; }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 7px 10px;
+    margin-top: 8px;
+    background: var(--panel2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: background .15s, border-color .15s, color .15s;
+  }
+  .btn:hover:not(:disabled) { background: #21262d; border-color: #3d444d; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.primary { background: rgba(88,166,255,.12); border-color: rgba(88,166,255,.5); color: var(--blue); }
+  .btn.primary:hover:not(:disabled) { background: rgba(88,166,255,.22); }
+  .btn.danger { background: rgba(248,81,73,.1); border-color: rgba(248,81,73,.5); color: var(--red); }
+  .btn.danger:hover:not(:disabled) { background: rgba(248,81,73,.2); }
+  .btn.go { background: rgba(63,185,80,.12); border-color: rgba(63,185,80,.5); color: var(--green); }
+  .btn.go:hover:not(:disabled) { background: rgba(63,185,80,.22); }
+  .btn.pivot { background: rgba(188,140,255,.1); border-color: rgba(188,140,255,.5); color: var(--purple); }
+  .btn.pivot:hover:not(:disabled) { background: rgba(188,140,255,.2); }
+  .btn.ghost { background: transparent; }
+  .btn.sm { width: auto; padding: 4px 10px; margin: 0; font-size: 11px; }
+
+  /* ---------- pivot controls ---------- */
+  .field { margin-top: 10px; }
+  .field > label { display: block; font-size: 11px; color: var(--dim); margin-bottom: 4px; }
+  select, input[type="range"] { width: 100%; }
+  select {
+    background: var(--panel2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+    font-family: var(--sans);
+    outline: none;
+  }
+  select:focus { border-color: var(--blue); }
+  input[type="range"] { accent-color: var(--purple); margin: 4px 0 2px; }
+  .eps-value { font-family: var(--mono); font-size: 12px; color: var(--purple); font-weight: 600; }
+
+  /* ---------- main: tabs + banner + table ---------- */
+  .main-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .main-title { font-size: 14px; font-weight: 700; }
+  .main-title .count { color: var(--dim); font-weight: 500; font-family: var(--mono); font-size: 12px; }
+  .updated { font-size: 11px; color: var(--dim); font-family: var(--mono); }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .tab {
+    padding: 5px 14px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--dim);
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: var(--sans);
+    cursor: pointer;
+    transition: color .15s, border-color .15s, background .15s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { background: var(--panel2); color: var(--blue); border-color: rgba(88,166,255,.5); }
+
+  .pivot-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    border: 1px solid rgba(188,140,255,.5);
+    border-radius: 6px;
+    background: rgba(188,140,255,.08);
+    color: var(--purple);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+  }
+  .pivot-banner:hover { background: rgba(188,140,255,.16); }
+  .pivot-banner .x { margin-left: auto; font-weight: 700; opacity: .8; }
+
+  .flat-banner {
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    border: 1px solid rgba(210,153,34,.5);
+    border-radius: 6px;
+    background: rgba(210,153,34,.08);
+    color: var(--yellow);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .table-wrap { border: 1px solid var(--border); border-radius: 8px; overflow: auto; background: var(--panel); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--panel2);
+    color: var(--dim);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    text-align: left;
+    padding: 7px 8px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  thead th.sortable { cursor: pointer; user-select: none; }
+  thead th.sortable:hover { color: var(--text); }
+  thead th .arrow { color: var(--blue); font-size: 9px; }
+  td { padding: 2px 8px; border-bottom: 1px solid #21262d; vertical-align: middle; height: 44px; max-height: 44px; }
+  tbody tr { transition: background .3s; }
+  tbody tr:hover td { background: rgba(88,166,255,.05); }
+  tbody tr.leader td { background: rgba(63,185,80,.07); }
+  tbody tr.leader:hover td { background: rgba(63,185,80,.12); }
+  tbody tr.pivot-row td { background: rgba(188,140,255,.05); }
+  tbody tr.leader.pivot-row td { background: rgba(63,185,80,.07); }
+  tbody tr.selected td {
+    background: rgba(88,166,255,.08);
+    box-shadow: inset 2px 0 0 var(--blue);
+  }
+  tbody tr.selected:hover td { background: rgba(88,166,255,.14); }
+  tbody tr.selected.leader td { background: rgba(88,166,255,.08); }
+  tbody tr.selected.leader:hover td { background: rgba(88,166,255,.14); }
+  @keyframes rowflash { 0% { background-color: rgba(88,166,255,.30); } 100% { background-color: transparent; } }
+  tbody tr.flash td { animation: rowflash 1.6s ease-out; }
+  tbody tr.eliminated td { opacity: .45; }
+  tbody tr.eliminated:hover td { background: transparent; }
+  .img-name.elim-name { text-decoration: line-through; }
+  .elim-mark { color: var(--dim); font-size: 13px; cursor: default; }
+
+  td.num, th.num { text-align: right; font-family: var(--mono); }
+  td.c { text-align: center; }
+  .rank { font-family: var(--mono); color: var(--dim); }
+  .rank.r1 { color: var(--green); font-weight: 700; }
+
+  .thumb {
+    width: 40px; height: 40px;
+    object-fit: cover;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    background: #0a0e13;
+    display: block;
+  }
+  .img-name {
+    color: var(--text);
+    cursor: pointer;
+    text-decoration: none;
+    word-break: break-all;
+  }
+  .img-name:hover { color: var(--blue); text-decoration: underline; }
+
+  .theta { font-family: var(--mono); font-weight: 600; }
+  .theta.lead { color: var(--green); }
+  .tied-mark { color: var(--dim); font-size: 10px; margin-left: 3px; }
+  .gap-sig { color: var(--green); font-size: 10px; font-weight: 700; }
+  .gap-tie { color: var(--dim); font-size: 10px; }
+
+  /* CI bar */
+  .ci-cell { min-width: 130px; }
+  .ci-track {
+    position: relative;
+    height: 8px;
+    background: #21262d;
+    border-radius: 4px;
+    min-width: 110px;
+  }
+  .ci-range {
+    position: absolute;
+    top: 0; height: 100%;
+    background: var(--blue);
+    opacity: .55;
+    border-radius: 2px;
+    min-width: 1px;
+  }
+  .ci-mid {
+    position: absolute;
+    top: -3px;
+    width: 2px;
+    height: 14px;
+    background: #fff;
+    transform: translateX(-50%);
+    border-radius: 1px;
+    box-shadow: 0 0 3px rgba(255,255,255,.5);
+  }
+  .ci-nums { font-family: var(--mono); font-size: 10px; color: var(--dim); margin-top: 2px; white-space: nowrap; }
+
+  .wins { color: var(--green); font-family: var(--mono); }
+  .losses { color: var(--red); font-family: var(--mono); }
+  .wl { font-family: var(--mono); white-space: nowrap; }
+
+  /* RR progress cell */
+  .rr-cell { white-space: nowrap; }
+  .rr-mini {
+    display: inline-block;
+    width: 44px;
+    height: 5px;
+    background: #21262d;
+    border-radius: 3px;
+    overflow: hidden;
+    vertical-align: middle;
+  }
+  .rr-mini .rr-fill { height: 100%; background: var(--blue); border-radius: 3px; transition: width .4s; }
+  .rr-mini .rr-fill.done { background: var(--green); }
+  .rr-text { font-size: 10px; font-family: var(--mono); color: var(--dim); margin-left: 6px; }
+  .rr-text.done { color: var(--green); font-weight: 700; }
+  .rr-none { color: #3d444d; }
+
+  /* phase badge */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .6px;
+    white-space: nowrap;
+  }
+  .badge.NEW           { background: rgba(188,140,255,.15); color: var(--purple); }
+  .badge.RR_ACTIVE     { background: rgba(88,166,255,.15); color: var(--blue); }
+  .badge.RR_DONE       { background: rgba(210,153,34,.15); color: var(--yellow); }
+  .badge.TIEBREAK_DONE { background: rgba(240,136,62,.15); color: var(--orange); }
+  .badge.GREEDY        { background: rgba(63,185,80,.15); color: var(--green); }
+  .badge.UNKNOWN       { background: rgba(139,148,158,.15); color: var(--dim); }
+  .badge.ELIMINATED    { background: rgba(139,148,158,.16); color: var(--dim); }
+
+  .del-btn {
+    background: transparent;
+    border: none;
+    color: var(--dim);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    line-height: 1;
+  }
+  .del-btn:hover { color: var(--red); background: rgba(248,81,73,.12); }
+
+  /* engine vs display honesty tags */
+  .tag-eng, .tag-disp { font-size: 9px; margin-left: 3px; font-weight: 700; cursor: help; }
+  .tag-eng { color: var(--green); }
+  .tag-disp { color: var(--dim); }
+  .table-legend { font-size: 10px; color: var(--dim); margin: 6px 2px 0; }
+
+  .revive-btn {
+    background: transparent;
+    border: none;
+    color: var(--dim);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    line-height: 1;
+  }
+  .revive-btn:hover { color: var(--green); background: rgba(63,185,80,.12); }
+
+  .hold-badge {
+    display: inline-block;
+    margin-left: 5px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--yellow);
+    filter: saturate(1.2);
+    user-select: none;
+  }
+  .hold-badge:hover { filter: drop-shadow(0 0 4px rgba(210,153,34,.8)); }
+
+  /* ---------- finished banner + podium ---------- */
+  .done-banner {
+    display: none;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 12px;
+    padding: 14px 18px;
+    border: 1px solid rgba(63,185,80,.55);
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(63,185,80,.14), rgba(63,185,80,.04));
+    position: relative;
+    overflow: hidden;
+  }
+  .done-banner.show { display: flex; }
+  .done-crown { font-size: 34px; animation: bounce 1.6s ease-in-out infinite; }
+  @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+  .done-text { flex: 1; min-width: 0; }
+  .done-title { font-size: 17px; font-weight: 800; color: var(--green); letter-spacing: .4px; }
+  .done-sub { font-size: 12px; color: var(--text); margin-top: 3px; }
+  .done-sub .mono { font-family: var(--mono); }
+  .done-actions { display: flex; flex-direction: column; gap: 6px; }
+  .done-actions .btn { margin-top: 0; white-space: nowrap; }
+  .done-podium { display: flex; align-items: flex-end; gap: 8px; margin: 10px 0 2px; }
+  .podium-item { text-align: center; position: relative; }
+  .podium-item img {
+    object-fit: cover;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    display: block;
+    background: #0a0e13;
+  }
+  .podium-item.p1 img { width: 96px; height: 96px; border-color: var(--green); box-shadow: 0 0 14px rgba(63,185,80,.4); }
+  .podium-item.p2 img { width: 72px; height: 72px; border-color: #8b949e; }
+  .podium-item.p3 img { width: 60px; height: 60px; border-color: #b0703a; }
+  .podium-item .p-rank {
+    position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; font-weight: 800; font-family: var(--mono);
+    background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1px 7px;
+  }
+  .podium-item.p1 .p-rank { color: var(--green); border-color: rgba(63,185,80,.6); }
+  .podium-item .p-name {
+    font-size: 9px; font-family: var(--mono); color: var(--dim);
+    max-width: 110px; margin: 4px auto 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .podium-item.p1 .p-name { color: var(--text); font-weight: 700; }
+
+  .confetti {
+    position: absolute;
+    top: -10px;
+    width: 7px; height: 12px;
+    border-radius: 2px;
+    pointer-events: none;
+    animation: fall linear forwards;
+  }
+  @keyframes fall {
+    to { transform: translateY(130px) rotate(720deg); opacity: 0; }
+  }
+
+  /* vote chips colored by CREDITED player (side), not raw letter */
+  .chip.side-f { background: rgba(88,166,255,.18); color: var(--blue); border: 1px solid rgba(88,166,255,.4); }
+  .chip.side-s { background: rgba(188,140,255,.18); color: var(--purple); border: 1px solid rgba(188,140,255,.4); }
+  .score-badge {
+    font-family: var(--mono); font-size: 10px; font-weight: 800; color: var(--text);
+    background: #21262d; border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 6px; margin-left: 6px;
+  }
+  .score-badge.tie { color: var(--yellow); border-color: rgba(210,153,34,.5); }
+
+  /* ---------- graph view ---------- */
+  .graph-wrap {
+    display: none;
+    flex-direction: column;
+    height: calc(100vh - 150px);
+    min-height: 420px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
+    overflow: hidden;
+  }
+  .graph-wrap.show { display: flex; }
+  .graph-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel2);
+    font-size: 11px;
+    color: var(--dim);
+  }
+  .chk { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; user-select: none; color: var(--text); }
+  .chk input { accent-color: var(--blue); }
+  .graph-hint { margin-left: auto; color: var(--dim); }
+  .graph-stage { position: relative; flex: 1; min-height: 0; }
+  #graphCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: default; }
+
+  .graph-card {
+    position: absolute;
+    z-index: 10;
+    width: 236px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5);
+    padding: 10px 12px;
+    font-size: 11px;
+  }
+  .gc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .gc-name { font-weight: 700; word-break: break-all; line-height: 1.3; }
+  .gc-x { background: transparent; border: none; color: var(--dim); cursor: pointer; font-size: 12px; padding: 2px 4px; line-height: 1; }
+  .gc-x:hover { color: var(--red); }
+  .gc-img {
+    width: 100%;
+    height: 90px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #0a0e13;
+    margin-bottom: 8px;
+    display: block;
+  }
+  .gc-row { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; }
+  .gc-row .k { color: var(--dim); }
+  .gc-row .v { font-family: var(--mono); color: var(--text); }
+  .gc-row .v.ok { color: var(--green); }
+  .gc-row .v.bad { color: var(--red); }
+
+  /* ---------- right: match feed ---------- */
+  .feed-head {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: -12px -10px 0;
+    padding: 12px 10px 10px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  .feed-title { font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .feed-title .count { color: var(--dim); font-family: var(--mono); font-size: 11px; font-weight: 500; }
+  .feed-toggle {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    color: var(--dim);
+    border-radius: 5px;
+    padding: 3px 9px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+  .feed-toggle:hover { color: var(--blue); border-color: rgba(88,166,255,.5); }
+
+  .feed { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .match {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel2);
+    padding: 7px 9px;
+  }
+  .match.first { border-left: 3px solid var(--blue); }
+  .match-top { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--dim); margin-bottom: 6px; }
+  .match-num { font-family: var(--mono); font-weight: 700; color: var(--text); }
+  .match-p { font-family: var(--mono); font-size: 10px; color: var(--blue); font-weight: 600; }
+  .match-phase { margin-left: auto; }
+  .match-time { font-family: var(--mono); }
+  .match-imgs { display: flex; align-items: center; gap: 8px; }
+  .mimg { position: relative; }
+  .mimg img {
+    width: 36px; height: 36px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 2px solid var(--border);
+    display: block;
+  }
+  .mimg.win img { border-color: var(--green); box-shadow: 0 0 6px rgba(63,185,80,.35); }
+  .mimg .wname {
+    display: block;
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 9px;
+    color: var(--dim);
+    margin-top: 3px;
+    font-family: var(--mono);
+  }
+  .mimg.win .wname { color: var(--green); }
+  .wdelta { font-family: var(--mono); font-size: 9px; }
+  .wdelta.up { color: var(--green); }
+  .wdelta.down { color: var(--red); }
+  .wdelta.flat { color: var(--dim); }
+  .winfo { display: block; font-family: var(--mono); font-size: 9px; color: var(--dim); margin-top: 2px; white-space: nowrap; }
+  .mimg.win .winfo { color: var(--text); }
+  .vs { font-size: 9px; color: var(--dim); font-weight: 700; }
+  .match-votes { display: flex; align-items: center; gap: 4px; margin-top: 7px; }
+  .match-votes .vl { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: .6px; margin-right: 3px; }
+  .chip {
+    display: inline-block;
+    min-width: 18px;
+    height: 17px;
+    line-height: 15px;
+    text-align: center;
+    padding: 0 4px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 800;
+    font-family: var(--mono);
+  }
+  .chip.va { background: rgba(88,166,255,.18); color: var(--blue); border: 1px solid rgba(88,166,255,.4); }
+  .chip.vb { background: rgba(188,140,255,.18); color: var(--purple); border: 1px solid rgba(188,140,255,.4); }
+  .chip.vn { background: rgba(139,148,158,.12); color: var(--dim); border: 1px solid rgba(139,148,158,.3); }
+  .chip.tie { background: rgba(210,153,34,.15); color: var(--yellow); border: 1px solid rgba(210,153,34,.5); }
+
+  .tie-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--yellow);
+    border: 1px solid rgba(210,153,34,.5);
+    background: rgba(210,153,34,.1);
+    border-radius: 10px;
+    padding: 2px 8px;
+    margin-left: auto;
+  }
+
+  /* compact match rows */
+  .match.compact { display: flex; align-items: center; gap: 7px; padding: 5px 8px; }
+  .match.compact .mimg img { width: 34px; height: 34px; border-width: 1.5px; }
+  .match.compact .cnames { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+  .match.compact .cname {
+    font-size: 10px;
+    font-family: var(--mono);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--dim);
+    line-height: 1.4;
+  }
+  .match.compact .cname.win { color: var(--green); font-weight: 700; }
+  .match.compact .match-phase {
+    margin-left: 0;
+    font-size: 9px;
+    color: var(--dim);
+    max-width: 88px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .match.compact .match-time { font-size: 9px; font-family: var(--mono); color: var(--dim); }
+  .match.compact .tie-label { margin-left: 0; font-size: 9px; padding: 1px 6px; }
+
+  .feed-empty { color: var(--dim); font-size: 12px; text-align: center; padding: 30px 0; }
+
+  /* ---------- modals ---------- */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(1,4,9,.7);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s;
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.6);
+    padding: 20px 22px;
+    width: 360px;
+    max-width: 92vw;
+    text-align: center;
+  }
+  .card .big-img {
+    width: 200px; height: 200px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    margin: 0 auto 14px;
+    display: block;
+    background: #0a0e13;
+  }
+  .card h3 { margin: 0 0 6px; font-size: 15px; word-break: break-all; line-height: 1.3; }
+  .card .desc { color: var(--dim); font-size: 12px; margin-bottom: 16px; }
+  .card .desc .mono { font-family: var(--mono); color: var(--text); }
+  .card .btn-row { display: flex; gap: 10px; margin-top: 8px; }
+  .card .btn-row .btn { margin-top: 0; flex: 1; }
+
+  /* ---------- tooltip / toast ---------- */
+  #tooltip {
+    position: fixed;
+    z-index: 200;
+    pointer-events: none;
+    background: #1c2128;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 9px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text);
+    white-space: nowrap;
+    box-shadow: 0 4px 14px rgba(0,0,0,.5);
+    opacity: 0;
+    transition: opacity .1s;
+  }
+  #tooltip .tt-dim { color: var(--dim); }
+
+  #toasts {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .toast {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--blue);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.5);
+    animation: toastin .2s ease-out;
+  }
+  .toast.ok { border-left-color: var(--green); }
+  .toast.err { border-left-color: var(--red); }
+  .toast.pivot { border-left-color: var(--purple); }
+  @keyframes toastin { from { transform: translateY(8px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 1199px) {
+    .app { grid-template-columns: 240px 1fr; }
+    .right { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ================= LEFT SIDEBAR ================= -->
+  <aside class="left">
+    <h1 class="tourney-title" id="tourneyTitle">…</h1>
+    <div class="conn" id="connInd"><span class="dot"></span><span id="connText">LIVE</span></div>
+
+    <div class="section-label">Phase</div>
+    <div class="phase-box ph-idle" id="phaseBox">
+      <div class="ph-label">Current phase <span class="paused-badge" id="pausedBadge" style="display:none">PAUSED</span></div>
+      <div class="ph-text" id="phaseText">Connecting…</div>
+    </div>
+
+    <div class="section-label">Match stats</div>
+    <div class="stat-group">
+      <div class="stat-row"><span class="k">Games</span><span class="v" id="stMatches">0</span></div>
+      <div class="stat-row"><span class="k" title="ENGINE — decisive query votes (Bradley-Terry observations)">⚙ Decisive</span><span class="v" id="stDecisive">0</span></div>
+      <div class="stat-row"><span class="k" title="Display stat — a tie game's votes still count toward θ; the label just means no vote majority">◌ Ties</span><span class="v" id="stTies">0</span></div>
+      <div class="stat-row"><span class="k">Queries</span><span class="v" id="stQueries">0</span></div>
+      <div class="stat-row"><span class="k">Elapsed</span><span class="v" id="stElapsed">00:00:00</span></div>
+      <div class="stat-row"><span class="k" title="Resolution budget for generated probes">Pixel budget</span><span class="v" id="stPixelBudget">—</span></div>
+    </div>
+
+    <div class="section-label">Rates</div>
+    <div class="stat-group">
+      <div class="stat-row"><span class="k">Queries/s</span><span class="v" id="stQps">0.0</span></div>
+      <div class="stat-row"><span class="k">Games/s</span><span class="v" id="stGps">0.0</span></div>
+      <div class="stat-row"><span class="k">Tie rate</span><span class="v" id="tiePct">0.0%</span></div>
+      <div class="tiebar">
+        <div class="track"><div class="fill" id="tieFill" style="width:0%"></div></div>
+      </div>
+    </div>
+
+    <div class="section-label">Field</div>
+    <div class="stat-group">
+      <div class="stat-row"><span class="k">Players</span><span class="v" id="stPlayers">0</span></div>
+      <div class="stat-row"><span class="k">Active</span><span class="v" id="stActive">0</span></div>
+      <div class="stat-row"><span class="k">Eliminated</span><span class="v" id="stEliminated">0</span></div>
+      <div class="stat-row"><span class="k" title="Players pinned alive (protected from elimination)">Held 📌</span><span class="v" id="stHeld">0</span></div>
+      <div class="stat-row"><span class="k" title="max ÷ min games · 1.0 = balanced">Games ratio</span><span class="v" id="diagGamesRatio">—</span></div>
+      <div class="stat-row"><span class="k" title="players idle 50+ matches">Starvation</span><span class="v" id="diagStarvation">—</span></div>
+      <div class="stat-row"><span class="k" title="both CIs &lt; 0.2·β at match time">Wasted</span><span class="v" id="diagWasted">—</span></div>
+    </div>
+
+    <div class="section-label">GPU</div>
+    <div class="stat-group">
+      <div class="stat-row"><span class="k">VRAM</span><span class="v" id="gpuVram">n/a</span></div>
+      <div class="vram-bar"><div class="vram-track"><div class="vram-fill" id="gpuVramFill" style="width:0%"></div></div></div>
+      <div class="stat-row"><span class="k">Temp</span><span class="v" id="gpuTemp">—</span></div>
+    </div>
+
+    <div class="section-label">Config</div>
+    <div class="stat-group">
+      <div class="stat-row"><span class="k">ε</span><span class="v" id="stEps">—</span></div>
+      <div class="stat-row"><span class="k">RR cycles</span><span class="v" id="stRrCycles">—</span></div>
+      <div class="stat-row"><span class="k">β</span><span class="v" id="stBeta">—</span></div>
+      <div class="stat-row"><span class="k" title="Queries per game (greedy phase = Q×2×R)">q / game</span><span class="v" id="stQpm">—</span></div>
+    </div>
+
+    <div class="section-label">Actions</div>
+    <button class="btn ghost" id="btnMenu">⌂ Tourney menu</button>
+    <button class="btn danger" id="btnRun">⏹ Stop</button>
+    <button class="btn primary" id="btnScan">Scan for new images</button>
+    <button class="btn go" id="btnReviveAll" style="display:none">🔁 Revive all</button>
+
+    <div class="section-label">Pivot</div>
+    <div class="field">
+      <label for="pivotMode">Mode</label>
+      <select id="pivotMode">
+        <option value="NONE">None</option>
+        <option value="PIVOT_RR">Pivot RR</option>
+        <option value="PIVOT_GREEDY">Pivot Greedy</option>
+      </select>
+    </div>
+    <div class="field" id="epsWrap" style="display:none">
+      <label for="pivotEps">Epsilon — <span class="eps-value" id="epsVal">0.00</span></label>
+      <input type="range" id="pivotEps" min="0" max="0.5" step="0.01" value="0">
+    </div>
+    <button class="btn pivot" id="btnApplyPivot">Activate pivot</button>
+    <button class="btn ghost" id="btnClearPivot">Clear pivot</button>
+  </aside>
+
+  <!-- ================= CENTER: RANKING / GRAPH ================= -->
+  <main>
+    <div class="main-head">
+      <span class="main-title">Ranking <span class="count" id="rankCount"></span></span>
+      <span class="updated" id="updatedAt"></span>
+    </div>
+
+    <div class="flat-banner" id="flatBanner" style="display:none">
+      ⚠ <span id="flatMsg"></span>
+    </div>
+
+    <div class="done-banner" id="doneBanner">
+      <div class="done-crown">🏁</div>
+      <div class="done-text">
+        <div class="done-title">Tournament complete</div>
+        <div class="done-sub" id="doneSub"></div>
+        <div class="done-podium" id="donePodium"></div>
+      </div>
+      <div class="done-actions">
+        <button class="btn go sm" id="btnDoneReviveAll">🔁 Revive all &amp; continue</button>
+        <button class="btn ghost sm" id="btnDoneMenu">⌂ Menu</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" id="tabTable">Table</button>
+      <button class="tab" id="tabGraph">Graph</button>
+    </div>
+
+    <div class="pivot-banner" id="pivotBanner" style="display:none">
+      <span id="pivotBannerText"></span>
+      <span class="x">✕</span>
+    </div>
+
+    <div class="table-wrap" id="tableWrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:30px" title="Select for pivot / elimination">Sel</th>
+            <th class="sortable num" data-sort="rank" style="width:48px" title="DISPLAY ONLY — rank is θ sorted for viewing; nothing in the engine reads it">#<span class="tag-disp">◌</span><span class="arrow"></span></th>
+            <th style="width:52px">Thumb</th>
+            <th class="sortable" data-sort="name">Name<span class="arrow"></span></th>
+            <th class="sortable num" data-sort="theta" style="width:70px" title="ENGINE — Bradley-Terry strength fit from ALL decisive votes. This IS the ranking.">θ est<span class="tag-eng">⚙</span><span class="arrow"></span></th>
+            <th class="sortable" data-sort="ci" style="width:170px" title="DISPLAY ONLY — bootstrap band for humans. The game gates use Fisher SE(gap), a different quantity.">CI<span class="tag-disp">◌</span><span class="arrow"></span></th>
+            <th style="width:48px" title="DISPLAY ONLY — significance of the gap to the rank above (θ gap vs 1.645×Fisher SE)">Δsig<span class="tag-disp">◌</span></th>
+            <th class="sortable num" data-sort="games" style="width:62px" title="ENGINE — decisive VOTES cast involving this image (query granularity — one 128-vote war adds 128, one shutout adds 2)">Votes<span class="tag-eng">⚙</span><span class="arrow"></span></th>
+            <th class="sortable num" data-sort="wins" style="width:70px" title="DISPLAY ONLY — counts decisive GAMES won/lost. Does NOT feed θ (votes do); a 69–59 war and a 2–0 shutout both move this by 1.">W/L<span class="tag-disp">◌</span><span class="arrow"></span></th>
+            <th class="sortable num" data-sort="rr" style="width:88px" title="ENGINE — scheduler pair-coverage progress (drives RR pair selection)">RR<span class="tag-eng">⚙</span><span class="arrow"></span></th>
+            <th class="sortable" data-sort="phase" style="width:104px" title="ENGINE — per-image scheduler phase (drives pair selection)">Phase<span class="tag-eng">⚙</span><span class="arrow"></span></th>
+            <th style="width:34px" title="Eliminate">✕</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="table-legend">⚙ = read by the ranking engine &nbsp;·&nbsp; ◌ = display only (never affects θ or ranking — hover any header for specifics)</div>
+
+    <div class="graph-wrap" id="graphWrap">
+      <div class="graph-toolbar">
+        <label class="chk" title="Pause live canvas redraws">
+          <input type="checkbox" id="flickerChk" checked> Flicker
+        </label>
+        <button class="btn ghost sm" id="graphRefresh">⟳ Refresh</button>
+        <span class="graph-hint">click a node for details · pulse = recent match</span>
+      </div>
+      <div class="graph-stage" id="graphStage">
+        <canvas id="graphCanvas"></canvas>
+        <div class="graph-card" id="graphCard" style="display:none">
+          <div class="gc-head">
+            <span class="gc-name" id="gcName"></span>
+            <button class="gc-x" id="gcClose" title="Close">✕</button>
+          </div>
+          <img class="gc-img" id="gcImg" alt="">
+          <div id="gcRows"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ================= RIGHT: MATCH FEED ================= -->
+  <aside class="right">
+    <div class="feed-head">
+      <span class="feed-title">Match Feed <span class="count" id="feedCount"></span></span>
+      <button class="feed-toggle" id="feedToggle">▦ Expand</button>
+    </div>
+    <div class="feed" id="feed"></div>
+  </aside>
+</div>
+
+<!-- ================= ELIMINATION MODAL ================= -->
+<div class="overlay" id="elimOverlay">
+  <div class="card">
+    <img class="big-img" id="elimImg" alt="">
+    <h3 id="elimName"></h3>
+    <div class="desc" id="elimDesc"></div>
+    <div class="btn-row">
+      <button class="btn danger" id="elimConfirm">Confirm</button>
+      <button class="btn ghost" id="elimCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= CONFIRM MODAL ================= -->
+<div class="overlay" id="confirmOverlay">
+  <div class="card">
+    <h3 id="confirmMsg" style="text-align:left">Are you sure?</h3>
+    <div class="btn-row">
+      <button class="btn danger" id="confirmOk">Confirm</button>
+      <button class="btn ghost" id="confirmCancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+<div id="toasts"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------- state ----------
+  var state = null;
+  var selSet = new Set();          // checked keys (persist across polls)
+  var lastState = null;            // previous poll for flash detection
+  var lastNewestId = null;
+  var sortKey = 'theta';
+  var sortDir = -1;                // -1 desc, 1 asc
+  var lastAppliedMode = 'NONE';    // last mode we sent to the backend
+  var pivotDirty = false;          // user touched pivot controls since last apply
+  var lastElapsed = 0;
+  var lastPollAt = 0;
+  var pendingElimKey = null;
+  var confirmCb = null;
+
+  // view state
+  var viewMode = 'table';          // 'table' | 'graph'
+  var graphActive = false;
+  var flickerOn = true;
+  var feedMode = 'compact';
+  var confettiKey = null;          // tourney+matches key — confetti fires once per completion
+  try { feedMode = localStorage.getItem('arenaFeedMode') || 'compact'; } catch (e) {}
+
+  // graph internals
+  var graphW = 0, graphH = 0, dpr = 1;
+  var lastLayout = [];             // [{x, y, r, key, name}] in CSS px
+  var nodeIndex = {};              // key -> index into lastLayout
+  var selectedKey = null;
+  var pulseNodes = new Set();
+  var pulseEdges = new Set();
+  var pulseUntil = 0;
+  var rafId = null;
+  var PULSE_MS = 2000;
+  var FONT = '"Segoe UI", system-ui, sans-serif';
+  var animPos = {};   // key → animated {x,y} — nodes EASE toward their target positions
+
+  // ---------- elements ----------
+  var $ = function (id) { return document.getElementById(id); };
+  var tourneyTitle = $('tourneyTitle'), connInd = $('connInd'), connText = $('connText');
+  var phaseBox = $('phaseBox'), phaseText = $('phaseText'), pausedBadge = $('pausedBadge');
+  var tbody = $('tbody'), feed = $('feed');
+  var pivotBanner = $('pivotBanner'), pivotBannerText = $('pivotBannerText');
+  var pivotModeSel = $('pivotMode'), pivotEps = $('pivotEps'), epsWrap = $('epsWrap'), epsVal = $('epsVal');
+  var elimOverlay = $('elimOverlay'), confirmOverlay = $('confirmOverlay');
+  var tooltip = $('tooltip'), toasts = $('toasts');
+  var rankCount = $('rankCount'), updatedAt = $('updatedAt'), feedCount = $('feedCount');
+  var btnRun = $('btnRun');
+  var tabTable = $('tabTable'), tabGraph = $('tabGraph');
+  var tableWrap = $('tableWrap'), graphWrap = $('graphWrap'), graphStage = $('graphStage');
+  var graphCanvas = $('graphCanvas'), graphCard = $('graphCard');
+  var gcName = $('gcName'), gcImg = $('gcImg'), gcRows = $('gcRows'), gcClose = $('gcClose');
+  var flickerChk = $('flickerChk'), graphRefresh = $('graphRefresh'), feedToggle = $('feedToggle');
+  var btnMenu = $('btnMenu'), btnReviveAll = $('btnReviveAll');
+  var doneBanner = $('doneBanner'), doneSub = $('doneSub'), donePodium = $('donePodium');
+  var btnDoneReviveAll = $('btnDoneReviveAll'), btnDoneMenu = $('btnDoneMenu');
+
+  // ---------- helpers ----------
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function imgUrl(key) { return '/image/' + encodeURIComponent(key); }
+  function fmtHMS(sec) {
+    sec = Math.max(0, Math.floor(sec));
+    var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    function p(n) { return (n < 10 ? '0' : '') + n; }
+    return p(h) + ':' + p(m) + ':' + p(s);
+  }
+  function relTime(ts) {
+    if (!ts) return '—';
+    var s = Date.now() / 1000 - ts;
+    if (s < 5) return 'now';
+    if (s < 60) return Math.floor(s) + 's ago';
+    var m = Math.floor(s / 60);
+    if (m < 60) return m + 'm ago';
+    var h = Math.floor(m / 60);
+    if (h < 24) return h + 'h ago';
+    return Math.floor(h / 24) + 'd ago';
+  }
+  function truncateName(s, n) {
+    s = String(s || '');
+    return s.length > n ? s.slice(0, n - 1) + '…' : s;
+  }
+  function ciBounds(r) {
+    var lo = +r.ci_lower, up = +r.ci_upper;
+    if (!isFinite(lo)) lo = 0;
+    if (!isFinite(up)) up = 0;
+    // clamp absurd values (|ci| > 100 guard) — shouldn't occur post-backend-fix
+    if (lo < -100) lo = -100;
+    if (up > 100) up = 100;
+    if (up < lo) { var t = lo; lo = up; up = t; }
+    return { lo: lo, up: up, w: up - lo };
+  }
+  function fmtCI(v) {
+    var n = +v;
+    if (!isFinite(n)) return '—';
+    var s = n.toFixed(3);
+    return (n > 0 ? '+' : '') + s;
+  }
+  function toast(msg, cls) {
+    var t = document.createElement('div');
+    t.className = 'toast' + (cls ? ' ' + cls : '');
+    t.textContent = msg;
+    toasts.appendChild(t);
+    setTimeout(function () { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; }, 2600);
+    setTimeout(function () { t.remove(); }, 3000);
+  }
+
+  // ---------- polling ----------
+  var pollTimer = null;
+  var connected = false;
+
+  function schedulePoll(ms) {
+    clearTimeout(pollTimer);
+    pollTimer = setTimeout(poll, ms);
+  }
+  function poll() {
+    fetch('/state', { cache: 'no-store' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (s) {
+        if (!connected) { connected = true; connInd.classList.remove('reconnect'); connText.textContent = 'LIVE'; }
+        lastState = state; state = s;
+        lastElapsed = s.stats ? s.stats.elapsed : 0;
+        lastPollAt = Date.now();
+        render(s);
+        // graph tab benefits from a faster cadence (smooth animation + live updates)
+        schedulePoll(graphActive ? 800 : 2000);
+      })
+      .catch(function (e) {
+        if (connected) { connected = false; connInd.classList.add('reconnect'); connText.textContent = 'Reconnecting…'; }
+        schedulePoll(5000);
+      });
+  }
+
+  // smooth elapsed clock between polls
+  setInterval(function () {
+    if (state && state.stats) {
+      var el = lastElapsed + (Date.now() - lastPollAt) / 1000;
+      $('stElapsed').textContent = fmtHMS(el);
+    }
+  }, 1000);
+
+  // ---------- phase ----------
+  function phaseClass(label) {
+    if (!label) return 'ph-idle';
+    if (/pivot/i.test(label)) return 'ph-pivot';
+    if (/round-robin|rr/i.test(label)) return 'ph-rr';
+    if (/tiebreak/i.test(label)) return 'ph-tie';
+    if (/greedy|ε/i.test(label)) return 'ph-greedy';
+    return 'ph-idle';
+  }
+
+  // ---------- stats ----------
+  function renderStats(st, cfg) {
+    if (!st) return;
+    var dec = st.decisive_matches || 0, ties = st.total_ties || 0, tot = st.total_matches || 0;
+    $('stMatches').textContent = tot.toLocaleString();
+    $('stDecisive').textContent = dec.toLocaleString();
+    $('stTies').textContent = ties.toLocaleString();
+    $('stQueries').textContent = (st.total_queries || 0).toLocaleString();
+    $('stPlayers').textContent = ((st.active_players || 0) + (st.eliminated || 0)).toLocaleString();
+    $('stActive').textContent = (st.active_players || 0).toLocaleString();
+    $('stEliminated').textContent = (st.eliminated || 0).toLocaleString();
+    $('stHeld').textContent = (st.held || 0).toLocaleString();
+    var tiePct = tot > 0 ? (ties / tot) * 100 : 0;
+    $('tieFill').style.width = tiePct.toFixed(1) + '%';
+    $('tiePct').textContent = tiePct.toFixed(1) + '%';
+    $('stQps').textContent = (typeof st.queries_per_sec === 'number' && isFinite(st.queries_per_sec) ? st.queries_per_sec : 0).toFixed(1);
+    $('stGps').textContent = (typeof st.games_per_sec === 'number' && isFinite(st.games_per_sec) ? st.games_per_sec : 0).toFixed(1);
+    var pb = st.pixel_budget;
+    if (typeof pb === 'number' && isFinite(pb) && pb > 0) {
+      var dim = Math.round(Math.sqrt(pb));
+      $('stPixelBudget').textContent = pb.toLocaleString() + ' px (' + dim + '×' + dim + ')';
+    } else {
+      $('stPixelBudget').textContent = '—';
+    }
+    if (cfg) {
+      $('stEps').textContent = cfg.epsilon != null ? cfg.epsilon.toFixed(2) : '—';
+      $('stRrCycles').textContent = cfg.rr_cycles != null ? cfg.rr_cycles : '—';
+      $('stBeta').textContent = cfg.beta != null ? cfg.beta.toFixed(2) : '—';
+      var qpg = null;
+      if (cfg.game_q_greedy != null && cfg.game_reps_greedy != null) {
+        qpg = cfg.game_q_greedy * 2 * cfg.game_reps_greedy;
+      } else if (cfg.queries_per_match != null) {
+        qpg = cfg.queries_per_match;
+      }
+      $('stQpm').textContent = qpg != null ? qpg : '—';
+    } else {
+      $('stEps').textContent = '—';
+      $('stRrCycles').textContent = '—';
+      $('stBeta').textContent = '—';
+      $('stQpm').textContent = '—';
+    }
+  }
+
+  function renderDiagnostics(st) {
+    if (!st) return;
+    var gr = st.games_ratio;
+    var grEl = $('diagGamesRatio');
+    grEl.textContent = (typeof gr === 'number' && isFinite(gr)) ? gr.toFixed(2) : '—';
+    grEl.className = 'v' + (isFinite(gr) && Math.abs(gr - 1) < 0.05 ? ' green' : '');
+    var wEl = $('diagWasted'), w = st.wasted_matches;
+    wEl.textContent = (typeof w === 'number') ? w.toLocaleString() : '—';
+    wEl.className = 'v' + (w === 0 ? ' green' : (w > 0 ? ' warn' : ''));
+    var sEl = $('diagStarvation'), sv = st.starvation;
+    sEl.textContent = (typeof sv === 'number') ? sv.toLocaleString() : '—';
+    sEl.className = 'v' + (sv === 0 ? ' green' : (sv > 0 ? ' warn' : ''));
+  }
+
+  function renderGpu(gpu) {
+    var vramEl = $('gpuVram'), fillEl = $('gpuVramFill'), tempEl = $('gpuTemp');
+    if (!gpu || typeof gpu.vram_total !== 'number' || gpu.vram_total <= 0) {
+      vramEl.textContent = 'n/a';
+      fillEl.style.width = '0%';
+      fillEl.style.background = '#30363d';
+      tempEl.textContent = '—';
+      tempEl.className = 'v';
+      return;
+    }
+    var used = gpu.vram_used || 0, total = gpu.vram_total;
+    vramEl.textContent = (used / 1024).toFixed(1) + ' / ' + (total / 1024).toFixed(1) + ' GB';
+    var pct = (used / total) * 100;
+    fillEl.style.width = Math.min(100, Math.max(0, pct)).toFixed(1) + '%';
+    fillEl.style.background = pct > 85 ? 'var(--red)' : (pct > 60 ? 'var(--yellow)' : 'var(--green)');
+    var temp = gpu.temperature;
+    if (typeof temp === 'number' && isFinite(temp)) {
+      tempEl.textContent = Math.round(temp) + '°C';
+      tempEl.className = 'v' + (temp < 60 ? ' green' : (temp <= 80 ? ' warn' : ' red'));
+    } else {
+      tempEl.textContent = '—';
+      tempEl.className = 'v';
+    }
+  }
+
+  // ---------- run / resume button ----------
+  function updateRunBtn(s) {
+    var running = s.running !== false;   // old backends: treat missing as running
+    var stopping = !!s.stopping;
+    var finished = !!s.finished;
+    if (finished && !stopping) {
+      btnRun.textContent = '🏁 Finished';
+      btnRun.className = 'btn';
+      btnRun.disabled = true;
+    } else if (running && !stopping) {
+      btnRun.textContent = '⏹ Stop';
+      btnRun.className = 'btn danger';
+      btnRun.disabled = false;
+    } else if (!running) {
+      btnRun.textContent = '▶ Resume';
+      btnRun.className = 'btn go';
+      btnRun.disabled = false;
+    } else {
+      btnRun.textContent = '⏳ Stopping…';
+      btnRun.className = 'btn';
+      btnRun.disabled = true;
+    }
+  }
+
+  function updateConn(s) {
+    connInd.classList.remove('paused', 'done');
+    if (!connected) return; // reconnect state is managed by poll()
+    if (s.stopping) { connInd.classList.add('reconnect'); connText.textContent = 'STOPPING…'; }
+    else if (s.finished) { connInd.classList.add('done'); connText.textContent = '🏁 FINISHED'; }
+    else if (s.running === false) { connInd.classList.add('paused'); connText.textContent = 'PAUSED'; }
+    else { connInd.classList.remove('reconnect'); connText.textContent = 'LIVE'; }
+  }
+
+  // ---------- sorting ----------
+  function sortedRows(ranking) {
+    var rows = ranking.map(function (r, i) {
+      return {
+        key: r.key, name: r.name, theta: r.theta,
+        ci: (r.ci_upper - r.ci_lower), ci_lower: r.ci_lower, ci_upper: r.ci_upper,
+        games: r.games, wins: r.wins, losses: r.losses, phase: r.phase,
+        pivot_selected: r.pivot_selected, origRank: i + 1,
+        rr_done: r.rr_done, rr_total: r.rr_total,
+        tied: !!r.tied_with_leader,
+        gap_sig: !!r.gap_sig, gap_se: r.gap_se,
+        eliminated: !!r.eliminated, held: !!r.held
+      };
+    });
+    rows.sort(function (a, b) {
+      // eliminated players always sink to the bottom
+      if (a.eliminated !== b.eliminated) return a.eliminated ? 1 : -1;
+      var av, bv;
+      switch (sortKey) {
+        case 'rank': av = a.origRank; bv = b.origRank; break;
+        case 'name': return sortDir * a.name.localeCompare(b.name);
+        case 'ci': av = a.ci; bv = b.ci; break;
+        case 'phase': av = a.phase; bv = b.phase; break;
+        case 'rr':
+          av = a.rr_total > 0 ? (a.rr_done || 0) / a.rr_total : -1;
+          bv = b.rr_total > 0 ? (b.rr_done || 0) / b.rr_total : -1;
+          break;
+        default: av = a[sortKey]; bv = b[sortKey]; break;
+      }
+      if (av < bv) return sortDir * -1;
+      if (av > bv) return sortDir * 1;
+      return 0;
+    });
+    return rows;
+  }
+
+  // ---------- table ----------
+  function rrCell(r) {
+    var tot = r.rr_total || 0;
+    if (tot <= 0) return '<td class="num"><span class="rr-none">—</span></td>';
+    var done = Math.min(r.rr_done || 0, tot);
+    var complete = done >= tot;
+    var pct = (done / tot) * 100;
+    return '<td class="num rr-cell">' +
+      '<span class="rr-mini"><span class="rr-fill' + (complete ? ' done' : '') + '" style="width:' + pct.toFixed(1) + '%"></span></span>' +
+      '<span class="rr-text' + (complete ? ' done' : '') + '">' + (complete ? '✓ ' : '') + done + '/' + tot + '</span>' +
+      '</td>';
+  }
+
+  function renderTable(ranking) {
+    var rows = sortedRows(ranking || []);
+    rankCount.textContent = rows.length ? '(' + rows.length + ' players)' : '';
+
+    // flat-field significance banner
+    var sig = state && state.significance;
+    var fb = $('flatBanner');
+    if (sig && sig.active > 1 && sig.tied_count > 0) {
+      var tiedTotal = sig.tied_count + 1;
+      var flat = sig.tied_count >= sig.active - 1;
+      $('flatMsg').textContent = flat
+        ? 'No statistically significant leader — all ' + sig.active + ' images within noise of #1'
+        : 'Leader ahead of only ' + (sig.active - tiedTotal) + ' — ' + tiedTotal + '/' + sig.active + ' statistically tied';
+      fb.style.display = 'block';
+    } else {
+      fb.style.display = 'none';
+    }
+
+    // CI scale: theta axis for bar positioning + widest CI for bar width
+    var thetaMin = Infinity, thetaMax = -Infinity, maxCIW = 0;
+    rows.forEach(function (r) {
+      var th = +r.theta;
+      if (isFinite(th)) {
+        if (th < thetaMin) thetaMin = th;
+        if (th > thetaMax) thetaMax = th;
+      }
+      var b = ciBounds(r);
+      if (b.w > maxCIW) maxCIW = b.w;
+    });
+    if (!isFinite(thetaMin)) { thetaMin = 0; thetaMax = 1; }
+    var thetaSpan = (thetaMax - thetaMin) || 1;
+    if (!(maxCIW > 0)) maxCIW = 1;
+
+    // flash detection
+    var flashKeys = null;
+    if (state.recent_matches && state.recent_matches.length) {
+      var nw = state.recent_matches[0];
+      var nid = nw.first + '|' + nw.second + '|' + nw.ts;
+      if (lastState && lastState.recent_matches && lastState.recent_matches.length) {
+        var prev = lastState.recent_matches[0];
+        if ((prev.first + '|' + prev.second + '|' + prev.ts) !== nid) {
+          flashKeys = new Set([nw.first, nw.second]);
+        }
+      }
+      lastNewestId = nid;
+    }
+
+    var html = rows.map(function (r, i) {
+      var sel = selSet.has(r.key);
+      var elim = !!r.eliminated;
+      var rank = i + 1;
+      var b = ciBounds(r);
+      var thetaPct = ((r.theta - thetaMin) / thetaSpan) * 100;
+      var width = Math.max(1.5, Math.min(100, (b.w / maxCIW) * 100));
+      var left = Math.max(0, Math.min(100 - width, thetaPct - width / 2));
+      var mid = Math.max(0, Math.min(100, thetaPct));
+      var enc = encodeURIComponent(r.key);
+      var cls = 'tr-' + i;
+      var extra = '';
+      if (elim) extra += ' eliminated';
+      if (rank === 1 && !elim) extra += ' leader';
+      if (sel) extra += ' selected';
+      if (r.pivot_selected && !elim) extra += ' pivot-row';
+      if (flashKeys && flashKeys.has(r.key)) extra += ' flash';
+      var thetaStr = r.theta.toFixed(3);
+      var ciCell = elim
+        ? '<td class="num"><span class="rr-none">—</span></td>'
+        : '<td><div class="ci-cell" data-key="' + enc + '">' +
+            '<div class="ci-track"><div class="ci-range" style="left:' + left.toFixed(1) + '%;width:' + width.toFixed(1) + '%"></div>' +
+            '<div class="ci-mid" style="left:' + mid.toFixed(1) + '%"></div></div>' +
+            '<div class="ci-nums">' + fmtCI(b.lo) + ' — ' + fmtCI(b.up) + '</div>' +
+          '</div></td>';
+      var gapCell = elim || rank === 1
+        ? '<td class="c"><span class="rr-none">—</span></td>'
+        : (r.gap_sig
+          ? '<td class="c" title="Significantly below rank above (Fisher SE=' + (r.gap_se != null ? r.gap_se.toFixed(3) : '?') + ')"><span class="gap-sig">sig</span></td>'
+          : '<td class="c" title="Not significantly different from rank above"><span class="gap-tie">≈</span></td>');
+      var phaseCell = elim
+        ? '<td><span class="badge ELIMINATED">ELIMINATED</span></td>'
+        : '<td><span class="badge ' + esc(r.phase || 'UNKNOWN') + '">' + esc(r.phase || 'UNKNOWN') + '</span>' +
+          (r.held ? '<span class="hold-badge" data-key="' + enc + '" title="Held alive — protected from elimination. Click to release the hold (player stays in unless it earns elimination again).">📌</span>' : '') + '</td>';
+      var delCell = elim
+        ? '<td class="c"><button class="revive-btn" data-key="' + enc + '" title="Revive — comes back HELD alive (📌), click the pin later to release">↺</button></td>'
+        : '<td class="c"><button class="del-btn" data-key="' + enc + '" title="Eliminate (bench — revivable)">✕</button></td>';
+      return '<tr class="' + cls + extra + '" data-key="' + enc + '">' +
+        '<td class="c"><input type="checkbox" class="sel" data-key="' + enc + '"' + (sel ? ' checked' : '') + '></td>' +
+        '<td class="num"><span class="rank' + (rank === 1 ? ' r1' : '') + '">' + rank + '</span></td>' +
+        '<td><img class="thumb" src="' + imgUrl(r.key) + '" loading="lazy" onerror="this.style.visibility=\'hidden\'" alt=""></td>' +
+        '<td><a class="img-name' + (elim ? ' elim-name' : '') + '" data-key="' + enc + '" title="' + esc(r.key) + '">' + esc(r.name) + '</a></td>' +
+        '<td class="num"><span class="theta' + (rank === 1 && !elim ? ' lead' : '') + '">' + thetaStr + (!elim && rank !== 1 && r.tied ? ' <span class="tied-mark" title="CI overlaps #1 — not statistically distinguishable">≈</span>' : '') + '</span></td>' +
+        ciCell +
+        gapCell +
+        '<td class="num">' + r.games + '</td>' +
+        '<td class="num wl"><span class="wins">' + r.wins + '</span>/<span class="losses">' + r.losses + '</span></td>' +
+        rrCell(r) +
+        phaseCell +
+        delCell +
+      '</tr>';
+    }).join('');
+
+    tbody.innerHTML = html || '<tr><td colspan="12" style="text-align:center;color:var(--dim);padding:30px">No players yet — scan for images to begin.</td></tr>';
+  }
+
+  // ---------- pivot ----------
+  function syncPivotControls(pivot) {
+    if (!pivot) return;
+    var mode = pivot.mode || 'NONE';
+    if (mode !== lastAppliedMode || !pivotDirty) {
+      // reflect backend state (or initial load); don't clobber in-flight user edits
+      if (mode !== pivotModeSel.value) pivotModeSel.value = mode;
+      if (mode === 'PIVOT_GREEDY' && typeof pivot.epsilon === 'number') {
+        pivotEps.value = pivot.epsilon;
+        epsVal.textContent = pivot.epsilon.toFixed(2);
+      }
+      epsWrap.style.display = mode === 'PIVOT_GREEDY' ? '' : 'none';
+      if (!pivotDirty) lastAppliedMode = mode;
+    }
+    // banner
+    if (mode === 'NONE') {
+      pivotBanner.style.display = 'none';
+    } else {
+      var n = (pivot.targets || []).length;
+      var txt = mode === 'PIVOT_RR'
+        ? 'PIVOT MODE: Round-Robin on ' + n + ' image' + (n === 1 ? '' : 's') + ' — click to clear'
+        : 'PIVOT MODE: Greedy on ' + n + ' image' + (n === 1 ? '' : 's') + ' (ε=' + (pivot.epsilon != null ? pivot.epsilon.toFixed(2) : '0.00') + ') — click to clear';
+      pivotBannerText.textContent = txt;
+      pivotBanner.style.display = 'flex';
+    }
+  }
+
+  // ---------- match feed ----------
+  function playerInfo(m, side) {
+    var after = side === 'first' ? m.theta_after_first : m.theta_after_second;
+    var before = side === 'first' ? m.theta_before_first : m.theta_before_second;
+    var games = side === 'first' ? m.games_first : m.games_second;
+    var head = '';
+    if (typeof after === 'number' && isFinite(after)) {
+      head = 'θ→' + (after > 0 ? '+' : '') + after.toFixed(2);
+    }
+    if (typeof after === 'number' && isFinite(after) && typeof before === 'number' && isFinite(before)) {
+      var d = after - before;
+      var cls = d > 0.0001 ? 'up' : (d < -0.0001 ? 'down' : 'flat');
+      var s = (d > 0 ? '+' : '') + d.toFixed(3);
+      head += ' <span class="wdelta ' + cls + '">(' + s + ')</span>';
+    }
+    var tail = (typeof games === 'number' && isFinite(games)) ? ' · ' + games + 'g' : '';
+    return head + tail;
+  }
+
+  function voteChips(m) {
+    var v = m.votes || [];
+    var sides = m.sides || [];
+    var chips = (!v.length)
+      ? '<span class="chip vn">–</span>'
+      : v.map(function (x, i) {
+          if (x === 'A' || x === 'B') {
+            // side = which image this vote was CREDITED to (counterbalanced orders:
+            // the same letter flips meaning between queries)
+            var side = sides[i];
+            var cls = side === 'F' ? 'side-f' : (side === 'S' ? 'side-s' : 'vn');
+            var tip = side === 'F'
+              ? 'vote went to ' + (m.first_name || 'left image')
+              : (side === 'S' ? 'vote went to ' + (m.second_name || 'right image') : '');
+            return '<span class="chip ' + cls + '" title="' + esc(tip) + '">' + x + '</span>';
+          }
+          return '<span class="chip vn">–</span>';
+        }).join('');
+    if (m.tie) return chips + '<span class="score-badge tie">2–2 TIE</span>';
+    if (m.score) return chips + '<span class="score-badge">' + m.score[0] + '–' + m.score[1] + '</span>';
+    return chips;
+  }
+
+  function probLabel(m) {
+    // win_prob = pre-match win chance for the FIRST (left) image. Always show
+    // the FAVORITE, with an arrow pointing at its side — unambiguous.
+    if (typeof m.win_prob !== 'number') return '';
+    var pL = Math.round(m.win_prob * 100);
+    var pR = 100 - pL;
+    var tip, html;
+    if (pL >= pR) {
+      tip = 'Pre-match win chance: ' + (m.first_name || 'left image') + ' ' + pL + '% vs ' + (m.second_name || 'right') + ' ' + pR + '%';
+      html = '<span class="match-p" title="' + esc(tip) + '">◀ ' + pL + '%</span>';
+    } else {
+      tip = 'Pre-match win chance: ' + (m.second_name || 'right image') + ' ' + pR + '% vs ' + (m.first_name || 'left') + ' ' + pL + '%';
+      html = '<span class="match-p" title="' + esc(tip) + '">' + pR + '% ▶</span>';
+    }
+    return html;
+  }
+
+  function feedCompact(m, num, i) {
+    var tie = !!m.tie;
+    var firstWin = !tie && m.winner && m.winner === m.first;
+    var secondWin = !tie && m.winner && m.winner === m.second;
+    var score = m.score ? '<span class="score-badge' + (tie ? ' tie' : '') + '">' + m.score[0] + '–' + m.score[1] + '</span>' : '';
+    return '<div class="match compact' + (i === 0 ? ' first' : '') + '">' +
+      '<div class="mimg sm' + (firstWin ? ' win' : '') + '">' +
+        '<img src="' + imgUrl(m.first) + '" loading="lazy" onerror="this.style.visibility=\'hidden\'" alt="">' +
+      '</div>' +
+      '<div class="mimg sm' + (secondWin ? ' win' : '') + '">' +
+        '<img src="' + imgUrl(m.second) + '" loading="lazy" onerror="this.style.visibility=\'hidden\'" alt="">' +
+      '</div>' +
+      '<div class="cnames">' +
+        '<span class="cname' + (firstWin ? ' win' : '') + '">' + esc(m.first_name || '') + '</span>' +
+        '<span class="cname' + (secondWin ? ' win' : '') + '">' + esc(m.second_name || '') + '</span>' +
+      '</div>' +
+      score +
+      (tie ? '<span class="tie-label">TIE</span>' : '') +
+      '<span class="match-phase">' + esc(m.phase || '') + '</span>' +
+      '<span class="match-time">' + relTime(m.ts) + '</span>' +
+    '</div>';
+  }
+
+  function feedExpanded(m, num, i) {
+    var tie = !!m.tie;
+    var firstWin = !tie && m.winner && m.winner === m.first;
+    var secondWin = !tie && m.winner && m.winner === m.second;
+    var p = probLabel(m);
+    var matchNum = (typeof m.game === 'number' && isFinite(m.game)) ? m.game : num;
+    return '<div class="match' + (i === 0 ? ' first' : '') + '">' +
+      '<div class="match-top">' +
+        '<span class="match-num">#' + matchNum + '</span>' +
+        p +
+        '<span class="match-phase">' + esc(m.phase || '') + '</span>' +
+        '<span class="match-time">' + relTime(m.ts) + '</span>' +
+      '</div>' +
+      '<div class="match-imgs">' +
+        '<div class="mimg' + (firstWin ? ' win' : '') + '">' +
+          '<img src="' + imgUrl(m.first) + '" loading="lazy" onerror="this.style.visibility=\'hidden\'" alt="">' +
+          '<span class="wname">' + esc(m.first_name || '') + '</span>' +
+          '<span class="winfo">' + playerInfo(m, 'first') + '</span>' +
+        '</div>' +
+        '<div class="vs">VS</div>' +
+        '<div class="mimg' + (secondWin ? ' win' : '') + '">' +
+          '<img src="' + imgUrl(m.second) + '" loading="lazy" onerror="this.style.visibility=\'hidden\'" alt="">' +
+          '<span class="wname">' + esc(m.second_name || '') + '</span>' +
+          '<span class="winfo">' + playerInfo(m, 'second') + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="match-votes"><span class="vl">Votes</span>' + voteChips(m) + '</div>' +
+    '</div>';
+  }
+
+  function renderFeed(matches, total) {
+    matches = (matches || []).slice(0, 50);
+    feedCount.textContent = matches.length ? '(' + matches.length + ')' : '';
+    if (!matches.length) {
+      feed.innerHTML = '<div class="feed-empty">No matches yet</div>';
+      return;
+    }
+    var html = matches.map(function (m, i) {
+      var num = total - i;
+      return feedMode === 'expanded' ? feedExpanded(m, num, i) : feedCompact(m, num, i);
+    }).join('');
+    feed.innerHTML = html;
+  }
+
+  function setFeedMode(m) {
+    feedMode = m;
+    feedToggle.textContent = m === 'compact' ? '▦ Expand' : '▤ Compact';
+    try { localStorage.setItem('arenaFeedMode', m); } catch (e) {}
+    if (state) renderFeed(state.recent_matches || [], (state.stats && state.stats.total_matches) || 0);
+  }
+
+  // ---------- graph: data ----------
+  function buildGraphData() {
+    var nodes, edges;
+    if (state.graph && state.graph.nodes && state.graph.nodes.length) {
+      nodes = state.graph.nodes.map(function (n) {
+        return { key: n.key, name: n.name, theta: n.theta || 0, games: n.games || 0, eliminated: !!n.eliminated, phase: n.phase };
+      });
+      edges = (state.graph.edges || []).map(function (e) { return { a: e.a, b: e.b, count: e.count || 1 }; });
+    } else {
+      nodes = (state.ranking || []).map(function (r) {
+        return { key: r.key, name: r.name, theta: r.theta || 0, games: r.games || 0, eliminated: !!r.eliminated, phase: r.phase };
+      });
+      edges = [];
+      var em = {};
+      (state.recent_matches || []).forEach(function (m) {
+        if (!m.first || !m.second) return;
+        var k = m.first < m.second ? m.first + '|' + m.second : m.second + '|' + m.first;
+        if (em[k]) em[k].count++; else em[k] = { a: m.first, b: m.second, count: 1 };
+      });
+      edges = Object.keys(em).map(function (k) { return em[k]; });
+    }
+    // stable, pleasing layout: strongest first, clockwise from top
+    nodes.sort(function (a, b) { return (b.theta || 0) - (a.theta || 0); });
+    return { nodes: nodes, edges: edges };
+  }
+
+  // ---------- graph: drawing ----------
+  function lerp(a, b, t) {
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  }
+  function thetaColor(t, maxAbs) {
+    if (!(maxAbs > 0)) return '#d29922';
+    var n = Math.max(-1, Math.min(1, t / maxAbs));
+    var c = n >= 0 ? lerp([210, 153, 34], [63, 185, 80], n) : lerp([210, 153, 34], [248, 81, 73], -n);
+    return 'rgb(' + Math.round(c[0]) + ',' + Math.round(c[1]) + ',' + Math.round(c[2]) + ')';
+  }
+  function nodeRadius(games, maxG) {
+    return 8 + (Math.log(games + 1) / Math.log(maxG + 1)) * 22;   // 8px .. 30px
+  }
+
+  function drawGraph(now) {
+    if (!graphActive || !state) return;
+    if (!graphW || !graphH) return;
+    var g = buildGraphData();
+    var ctx = graphCanvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, graphW, graphH);
+
+    var N = g.nodes.length;
+    if (!N) {
+      ctx.fillStyle = 'rgba(139,148,158,.8)';
+      ctx.font = '13px ' + FONT;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('No players yet — scan for images to begin.', graphW / 2, graphH / 2);
+      return;
+    }
+
+    // scales
+    var maxG = 1, maxAbs = 1;
+    g.nodes.forEach(function (n) {
+      if (n.games > maxG) maxG = n.games;
+      if (Math.abs(n.theta) > maxAbs) maxAbs = Math.abs(n.theta);
+    });
+
+    // layout: circle (targets) — drawn positions come from animPos (eased)
+    var cx = graphW / 2, cy = graphH / 2;
+    var R = Math.max(70, Math.min(graphW, graphH) / 2 - 74);
+    var start = -Math.PI / 2;
+    lastLayout = []; nodeIndex = {};
+    g.nodes.forEach(function (n, i) {
+      var ang = start + (i / N) * Math.PI * 2;
+      var r = nodeRadius(n.games, maxG);
+      var tx = cx + R * Math.cos(ang), ty = cy + R * Math.sin(ang);
+      lastLayout.push({ x: tx, y: ty, r: r, key: n.key, name: n.name });
+      if (!animPos[n.key]) animPos[n.key] = { x: tx, y: ty };
+      nodeIndex[n.key] = i;
+    });
+    var drawLayout = lastLayout.map(function (p) {
+      var a = animPos[p.key] || { x: p.x, y: p.y };
+      return { x: a.x, y: a.y, r: p.r, key: p.key, name: p.name };
+    });
+
+    // edges
+    var emap = {};
+    g.edges.forEach(function (e) {
+      if (!e.a || !e.b || nodeIndex[e.a] == null || nodeIndex[e.b] == null) return;
+      var k = e.a < e.b ? e.a + '|' + e.b : e.b + '|' + e.a;
+      if (emap[k]) emap[k].count += e.count;
+      else emap[k] = { a: e.a, b: e.b, count: e.count };
+    });
+    var elist = [];
+    var maxDiff = 0.0001, maxCnt = 1;
+    Object.keys(emap).forEach(function (k) {
+      var e = emap[k];
+      var na = g.nodes[nodeIndex[e.a]], nb = g.nodes[nodeIndex[e.b]];
+      e.diff = Math.abs(na.theta - nb.theta);
+      if (e.diff > maxDiff) maxDiff = e.diff;
+      if (e.count > maxCnt) maxCnt = e.count;
+      elist.push(e);
+    });
+    elist.sort(function (a, b) { return a.diff - b.diff; });  // faint first, bright on top
+
+    // edges (base)
+    elist.forEach(function (e) {
+      var pa = drawLayout[nodeIndex[e.a]], pb = drawLayout[nodeIndex[e.b]];
+      var norm = e.diff / maxDiff;
+      var na = g.nodes[nodeIndex[e.a]], nb = g.nodes[nodeIndex[e.b]];
+      var winner = na.theta >= nb.theta ? na : nb;
+      ctx.beginPath();
+      ctx.moveTo(pa.x, pa.y);
+      ctx.lineTo(pb.x, pb.y);
+      ctx.globalAlpha = 0.12 + 0.5 * norm;                       // θ-difference → brightness
+      ctx.strokeStyle = thetaColor(winner.theta, maxAbs);        // hint of winner's color
+      ctx.lineWidth = 1 + (Math.log(e.count + 1) / Math.log(maxCnt + 1)) * 2.2;
+      ctx.stroke();
+    });
+    ctx.globalAlpha = 1;
+
+    // selected node's edges highlighted on top
+    if (selectedKey != null) {
+      elist.forEach(function (e) {
+        if (e.a !== selectedKey && e.b !== selectedKey) return;
+        var pa = drawLayout[nodeIndex[e.a]], pb = drawLayout[nodeIndex[e.b]];
+        ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y);
+        ctx.strokeStyle = 'rgba(240,246,252,.85)';
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+      });
+    }
+
+    // pulse on recently-active nodes/edges
+    if (now && now < pulseUntil && pulseNodes.size) {
+      var prog = 1 - (pulseUntil - now) / PULSE_MS;
+      var a = 0.55 * (1 - prog);
+      pulseNodes.forEach(function (key) {
+        var i = nodeIndex[key];
+        if (i == null) return;
+        var p = drawLayout[i];
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r + 6 + prog * 16, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(88,166,255,' + a.toFixed(3) + ')';
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+      });
+      pulseEdges.forEach(function (k) {
+        var parts = k.split('|');
+        var ia = nodeIndex[parts[0]], ib = nodeIndex[parts[1]];
+        if (ia == null || ib == null) return;
+        var pa = drawLayout[ia], pb = drawLayout[ib];
+        ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y);
+        ctx.strokeStyle = 'rgba(88,166,255,' + (0.7 * (1 - prog)).toFixed(3) + ')';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      });
+    }
+
+    // nodes
+    g.nodes.forEach(function (n, i) {
+      var p = drawLayout[i];
+      var col = n.eliminated ? '#6e7681' : thetaColor(n.theta, maxAbs);
+      ctx.globalAlpha = n.eliminated ? 0.45 : 1;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = col; ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.lineWidth = selectedKey === n.key ? 2.5 : 1;
+      ctx.strokeStyle = selectedKey === n.key ? '#f0f6fc' : 'rgba(255,255,255,.22)';
+      ctx.stroke();
+      if (n.eliminated) {
+        ctx.fillStyle = 'rgba(240,246,252,.9)';
+        ctx.font = '700 ' + Math.max(9, Math.round(p.r * 0.85)) + 'px ' + FONT;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('✕', p.x, p.y + 1);
+      }
+    });
+
+    // labels (only when sparse)
+    if (N <= 20) {
+      ctx.fillStyle = 'rgba(201,209,217,.75)';
+      ctx.font = '9px ' + FONT;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      g.nodes.forEach(function (n, i) {
+        if (n.eliminated) return;
+        var p = drawLayout[i];
+        ctx.fillText(truncateName(n.name, 14), p.x, p.y + p.r + 4);
+      });
+    }
+
+    drawLegend(ctx, maxAbs, maxG);
+  }
+
+  function drawLegend(ctx, maxAbs, maxG) {
+    if (graphW < 380 || graphH < 300) return;
+
+    // node size legend (top-left)
+    var sx = 16, sy = 44;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.font = '9px ' + FONT;
+    ctx.fillStyle = 'rgba(139,148,158,.95)';
+    ctx.fillText('node size = games', sx, 16);
+    var rS = nodeRadius(1, maxG);
+    var rB = nodeRadius(maxG, maxG);
+    ctx.beginPath(); ctx.arc(sx + rS + 2, sy, rS, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(201,209,217,.45)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = 'rgba(139,148,158,.95)';
+    ctx.fillText('few', sx + rS * 2 + 8, sy);
+    var bx = sx + 96;
+    ctx.beginPath(); ctx.arc(bx + rB, sy, rB, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(201,209,217,.45)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.stroke();
+    ctx.fillText('many', bx + rB * 2 + 8, sy);
+
+    // θ color scale (bottom-left)
+    var lx = 16, lw = 150, lh = 10;
+    var ly = graphH - 24;
+    var grad = ctx.createLinearGradient(lx, 0, lx + lw, 0);
+    grad.addColorStop(0, '#f85149');
+    grad.addColorStop(0.5, '#d29922');
+    grad.addColorStop(1, '#3fb950');
+    ctx.fillStyle = grad;
+    ctx.fillRect(lx, ly, lw, lh);
+    ctx.strokeStyle = 'rgba(255,255,255,.18)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(lx, ly, lw, lh);
+    ctx.fillStyle = 'rgba(139,148,158,.95)';
+    ctx.font = '9px ' + FONT;
+    ctx.textBaseline = 'bottom';
+    ctx.textAlign = 'left';
+    ctx.fillText('−' + maxAbs.toFixed(1), lx, ly - 3);
+    ctx.textAlign = 'center';
+    ctx.fillText('0', lx + lw / 2, ly - 3);
+    ctx.textAlign = 'right';
+    ctx.fillText('+' + maxAbs.toFixed(1), lx + lw, ly - 3);
+  }
+
+  // ---------- graph: interactions ----------
+  function hitTest(x, y) {
+    for (var i = lastLayout.length - 1; i >= 0; i--) {
+      var p = lastLayout[i];
+      var a = animPos[p.key] || p;
+      var dx = x - a.x, dy = y - a.y;
+      if (dx * dx + dy * dy <= (p.r + 6) * (p.r + 6)) return i;
+    }
+    return null;
+  }
+
+  function showGraphCard(idx) {
+    if (!lastLayout[idx]) return;
+    var key = lastLayout[idx].key;
+    var row = null;
+    (state.ranking || []).forEach(function (r) { if (r.key === key) row = r; });
+    if (!row) {
+      var g = buildGraphData();
+      for (var i = 0; i < g.nodes.length; i++) {
+        if (g.nodes[i].key === key) { row = g.nodes[i]; break; }
+      }
+    }
+    if (!row) return;
+    gcImg.src = imgUrl(key);
+    gcName.textContent = row.name || key;
+    var html = '';
+    function addRow(k, v, cls) {
+      html += '<div class="gc-row"><span class="k">' + k + '</span><span class="v' + (cls ? ' ' + cls : '') + '">' + v + '</span></div>';
+    }
+    if (typeof row.theta === 'number') addRow('θ', row.theta.toFixed(3));
+    if (typeof row.ci_lower === 'number' && typeof row.ci_upper === 'number') {
+      addRow('CI', '[' + row.ci_lower.toFixed(2) + ', ' + row.ci_upper.toFixed(2) + ']');
+    }
+    if (typeof row.games === 'number') addRow('Games', row.games);
+    if (typeof row.wins === 'number' && typeof row.losses === 'number') addRow('W/L', row.wins + ' / ' + row.losses);
+    if ((row.rr_total || 0) > 0) addRow('RR', (row.rr_done || 0) + ' / ' + row.rr_total, row.rr_done >= row.rr_total ? 'ok' : '');
+    if (row.phase) addRow('Phase', esc(row.phase));
+    if (row.eliminated) addRow('Status', 'ELIMINATED', 'bad');
+    gcRows.innerHTML = html;
+
+    graphCard.style.display = 'block';
+    var cw = graphCard.offsetWidth, ch = graphCard.offsetHeight;
+    var p = lastLayout[idx];
+    var a = animPos[p.key] || p;
+    var sw = graphStage.clientWidth, sh = graphStage.clientHeight;
+    var x = a.x + p.r + 14, y = a.y - ch / 2;
+    if (x + cw > sw - 8) x = p.x - p.r - cw - 14;
+    if (x < 8) x = 8;
+    if (y < 8) y = 8;
+    if (y + ch > sh - 8) y = sh - ch - 8;
+    graphCard.style.left = Math.round(x) + 'px';
+    graphCard.style.top = Math.round(y) + 'px';
+  }
+
+  function hideGraphCard() {
+    graphCard.style.display = 'none';
+    selectedKey = null;
+  }
+
+  graphCanvas.addEventListener('click', function (e) {
+    if (!lastLayout.length) return;
+    var rect = graphCanvas.getBoundingClientRect();
+    var x = e.clientX - rect.left, y = e.clientY - rect.top;
+    var idx = hitTest(x, y);
+    if (idx == null) {
+      if (selectedKey != null) { hideGraphCard(); drawGraph(0); }
+      return;
+    }
+    selectedKey = lastLayout[idx].key;
+    showGraphCard(idx);
+    drawGraph(0);
+  });
+
+  graphCanvas.addEventListener('mousemove', function (e) {
+    if (!lastLayout.length) { graphCanvas.style.cursor = 'default'; return; }
+    var rect = graphCanvas.getBoundingClientRect();
+    var x = e.clientX - rect.left, y = e.clientY - rect.top;
+    graphCanvas.style.cursor = hitTest(x, y) != null ? 'pointer' : 'default';
+  });
+
+  gcClose.addEventListener('click', function () {
+    hideGraphCard();
+    if (graphActive && state) drawGraph(0);
+  });
+
+  // ---------- graph: live flicker ----------
+  function collectPulse(s) {
+    var nodes = new Set(), edges = new Set();
+    var now = Date.now() / 1000;
+    var ms = s.recent_matches || [];
+    for (var i = 0; i < Math.min(3, ms.length); i++) {
+      var m = ms[i];
+      if (!m.ts || now - m.ts > 20) break;
+      if (m.first) nodes.add(m.first);
+      if (m.second) nodes.add(m.second);
+      if (m.first && m.second) edges.add(m.first < m.second ? m.first + '|' + m.second : m.second + '|' + m.first);
+    }
+    return { nodes: nodes, edges: edges };
+  }
+
+  function triggerPulse(pulse) {
+    pulseNodes = pulse.nodes;
+    pulseEdges = pulse.edges;
+    pulseUntil = performance.now() + PULSE_MS;
+    kickGraph();
+  }
+
+  // continuous animation loop: eases nodes toward target positions each frame,
+  // then keeps drawing while a pulse is alive. Idles (no rAF) when settled.
+  function kickGraph() {
+    if (rafId || !graphActive || !flickerOn || !state) return;
+    rafId = requestAnimationFrame(graphLoop);
+  }
+  function graphLoop() {
+    if (!graphActive || !flickerOn || !state) { rafId = null; return; }
+    var animating = false;
+    lastLayout.forEach(function (p) {
+      var a = animPos[p.key];
+      if (!a) { animPos[p.key] = { x: p.x, y: p.y }; return; }
+      a.x += (p.x - a.x) * 0.16;
+      a.y += (p.y - a.y) * 0.16;
+      if (Math.abs(p.x - a.x) > 0.4 || Math.abs(p.y - a.y) > 0.4) animating = true;
+      else { a.x = p.x; a.y = p.y; }
+    });
+    var now = performance.now();
+    var pulsing = now < pulseUntil && pulseNodes.size;
+    drawGraph(pulsing ? now : 0);
+    if (animating || pulsing) rafId = requestAnimationFrame(graphLoop);
+    else rafId = null;
+  }
+
+  function updateGraphOnPoll(s) {
+    if (!graphActive) return;
+    if (!flickerOn) return;                       // frozen — user must hit Refresh
+    var nm = (s.recent_matches && s.recent_matches.length) ? s.recent_matches[0] : null;
+    var fresh = false;
+    if (nm && !lastState) fresh = true;
+    else if (nm && lastState) {
+      var pv = (lastState.recent_matches && lastState.recent_matches.length) ? lastState.recent_matches[0] : null;
+      fresh = !pv || !(pv.first === nm.first && pv.second === nm.second && pv.ts === nm.ts);
+    }
+    if (s.running !== false && fresh && nm) triggerPulse(collectPulse(s));
+    else kickGraph();   // data may still have moved nodes — ease to new targets
+  }
+
+  // ---------- graph: sizing ----------
+  function resizeGraph() {
+    dpr = window.devicePixelRatio || 1;
+    graphW = graphStage.clientWidth;
+    graphH = graphStage.clientHeight;
+    if (!graphW || !graphH) return;
+    var bw = Math.max(50, Math.round(graphW * dpr));
+    var bh = Math.max(50, Math.round(graphH * dpr));
+    if (graphCanvas.width !== bw) graphCanvas.width = bw;
+    if (graphCanvas.height !== bh) graphCanvas.height = bh;
+    graphCanvas.style.width = graphW + 'px';
+    graphCanvas.style.height = graphH + 'px';
+    if (graphActive && state) { drawGraph(0); kickGraph(); }
+  }
+  window.addEventListener('resize', function () { if (graphActive) resizeGraph(); });
+  if (window.ResizeObserver) {
+    var ro = new ResizeObserver(function () { if (graphActive) resizeGraph(); });
+    ro.observe(graphStage);
+  }
+
+  // ---------- view switching ----------
+  function setView(v) {
+    viewMode = v;
+    tabTable.classList.toggle('active', v === 'table');
+    tabGraph.classList.toggle('active', v === 'graph');
+    tableWrap.style.display = v === 'table' ? '' : 'none';
+    graphWrap.classList.toggle('show', v === 'graph');
+    graphActive = v === 'graph';
+    if (graphActive) {
+      // defer until the tab is actually visible/laid out so .graph-stage has a real size
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          resizeGraph();
+        });
+      });
+    } else {
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    }
+  }
+  tabTable.addEventListener('click', function () { setView('table'); });
+  tabGraph.addEventListener('click', function () { setView('graph'); });
+  flickerChk.addEventListener('change', function () {
+    flickerOn = flickerChk.checked;
+    if (!flickerOn) {
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    } else if (graphActive && state) {
+      drawGraph(0);
+      kickGraph();
+    }
+  });
+  graphRefresh.addEventListener('click', function () {
+    if (graphActive && state) { drawGraph(0); kickGraph(); }
+    toast('Graph refreshed', '');
+  });
+
+  // ---------- finished banner / revive all ----------
+  function fireConfetti(el) {
+    var colors = ['#3fb950', '#58a6ff', '#d29922', '#bc8cff', '#f0883e', '#f85149'];
+    for (var i = 0; i < 50; i++) {
+      (function (i) {
+        var c = document.createElement('div');
+        c.className = 'confetti';
+        c.style.left = (Math.random() * 100) + '%';
+        c.style.background = colors[i % colors.length];
+        c.style.animationDuration = (2.2 + Math.random() * 2.2) + 's';
+        c.style.animationDelay = (Math.random() * 0.8) + 's';
+        c.style.transform = 'rotate(' + Math.round(Math.random() * 360) + 'deg)';
+        el.appendChild(c);
+        setTimeout(function () { c.remove(); }, 5600);
+      })(i);
+    }
+  }
+
+  function renderDone(s) {
+    var st = s.stats || {};
+    var elimN = st.eliminated || 0;
+    btnReviveAll.style.display = elimN > 0 ? '' : 'none';
+    btnReviveAll.textContent = '🔁 Revive all (' + elimN + ' benched)';
+
+    var fin = !!s.finished;
+    doneBanner.classList.toggle('show', fin);
+    if (!fin) { confettiKey = null; return; }
+
+    var rk = (s.ranking || []).filter(function (r) { return !r.eliminated; });
+    if (!rk.length) return;
+    var w = rk[0];
+    doneSub.innerHTML = 'Winner: <span class="mono">' + esc(w.name) + '</span>' +
+      ' · θ=<span class="mono">' + (+w.theta).toFixed(3) + '</span>' +
+      ' · <span class="mono">' + (st.total_matches || 0).toLocaleString() + '</span> games' +
+      ' · <span class="mono">' + (st.total_ties || 0).toLocaleString() + '</span> ties';
+
+    function pod(item, cls, label) {
+      if (!item) return '';
+      return '<div class="podium-item ' + cls + '"><span class="p-rank">' + label + '</span>' +
+        '<img src="' + imgUrl(item.key) + '" alt="">' +
+        '<div class="p-name" title="' + esc(item.key) + '">' + esc(item.name) + '</div></div>';
+    }
+    donePodium.innerHTML = pod(rk[1], 'p2', '2') + pod(rk[0], 'p1', '1') + pod(rk[2], 'p3', '3');
+
+    var ck = (s.tourney || '') + '#' + (st.total_matches || 0);
+    if (confettiKey !== ck) { confettiKey = ck; fireConfetti(doneBanner); }
+  }
+
+  // ---------- main render ----------
+  function render(s) {
+    tourneyTitle.textContent = s.tourney || 'Tournament';
+    document.title = (s.tourney || 'VLM Image Arena') + ' — Live';
+
+    // phase label (+ client-side RR pending-coverage enhancement)
+    var label = s.phase_label || '—';
+    var phHtml = esc(label);
+    if (/round-robin|rr/i.test(label)) {
+      var rk = s.ranking || [];
+      var inRR = rk.filter(function (r) { return (r.rr_total || 0) > 0; });
+      if (inRR.length) {
+        var pend = inRR.filter(function (r) { return (r.rr_done || 0) < r.rr_total; }).length;
+        var cycles = (s.config && s.config.rr_cycles) || 2;
+        if (pend > 0) {
+          phHtml += ' <span class="ph-pend">— ' + pend + '/' + inRR.length + ' images still need ' + cycles + '× coverage</span>';
+        } else {
+          phHtml += ' <span class="ph-pend ok">— RR coverage complete</span>';
+        }
+      }
+    }
+    phaseText.innerHTML = phHtml;
+    phaseBox.className = 'phase-box ' + phaseClass(label);
+    pausedBadge.style.display = (s.running === false && !s.finished) ? '' : 'none';
+
+    updateRunBtn(s);
+    updateConn(s);
+    renderStats(s.stats, s.config);
+    renderDiagnostics(s.stats);
+    renderGpu(s.gpu);
+    renderDone(s);
+    renderTable(s.ranking || []);
+    renderFeed(s.recent_matches || [], (s.stats && s.stats.total_matches) || 0);
+    syncPivotControls(s.pivot);
+    updateGraphOnPoll(s);
+    updatedAt.textContent = 'updated ' + new Date().toLocaleTimeString();
+  }
+
+  // ---------- modal helpers ----------
+  function showOverlay(el) { el.classList.add('show'); }
+  function hideOverlay(el) { el.classList.remove('show'); }
+
+  function openElim(key) {
+    if (!state || !state.ranking) return;
+    var row = null;
+    for (var i = 0; i < state.ranking.length; i++) {
+      if (state.ranking[i].key === key) { row = state.ranking[i]; break; }
+    }
+    if (!row || row.eliminated) { toast('Player not found or already eliminated', 'err'); return; }
+    pendingElimKey = key;
+    var rank = sortedRows(state.ranking).findIndex(function (r) { return r.key === key; }) + 1;
+    $('elimImg').src = imgUrl(key);
+    $('elimName').textContent = row.name;
+    $('elimDesc').innerHTML =
+      'θ = <span class="mono">' + row.theta.toFixed(3) + '</span> · ' +
+      'games = <span class="mono">' + row.games + '</span> · ' +
+      'rank = <span class="mono">#' + rank + '</span>' +
+      '<br><span style="color:var(--yellow);font-size:11px">Benches the image — revivable anytime via ↺ (comes back held alive).</span>';
+    showOverlay(elimOverlay);
+  }
+
+  function openConfirm(msg, cb) {
+    $('confirmMsg').textContent = msg;
+    confirmCb = cb;
+    showOverlay(confirmOverlay);
+  }
+
+  // ---------- actions ----------
+  function post(url, body) {
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function (r) { return r.json(); });
+  }
+
+  btnRun.addEventListener('click', function () {
+    if (!state) return;
+    if (state.finished) return;
+    if (state.running && !state.stopping) {
+      // INSTANT stop — you clicked it, you meant it.
+      post('/stop').then(function () { toast('Stop requested — finishing current match…', 'ok'); })
+        .catch(function () { toast('Stop request failed', 'err'); });
+    } else if (state.running === false) {
+      post('/resume').then(function () { toast('Resumed — match loop running', 'ok'); })
+        .catch(function () { toast('Resume failed', 'err'); });
+    }
+  });
+
+  btnMenu.addEventListener('click', function () { window.location.href = '/launcher'; });
+  btnDoneMenu.addEventListener('click', function () { window.location.href = '/launcher'; });
+
+  function reviveAllAndContinue(btn) {
+    btn.disabled = true;
+    post('/revive_all').then(function (r) {
+      var n = r.revived || 0;
+      toast(n ? '🔁 Revived ' + n + ' — everyone back in the fight' : 'Nobody was benched', n ? 'ok' : '');
+    }).catch(function () { toast('Revive all failed', 'err'); })
+      .finally(function () { btn.disabled = false; });
+  }
+  btnReviveAll.addEventListener('click', function () { reviveAllAndContinue(btnReviveAll); });
+  btnDoneReviveAll.addEventListener('click', function () { reviveAllAndContinue(btnDoneReviveAll); });
+
+  $('btnScan').addEventListener('click', function () {
+    var b = this; b.disabled = true; b.textContent = 'Scanning…';
+    post('/scan').then(function (res) {
+      var n = (res.added || []).length;
+      toast(n ? 'Scan: added ' + n + ' new image' + (n === 1 ? '' : 's') : 'Scan: no new images', n ? 'ok' : '');
+    }).catch(function () { toast('Scan failed — is the server up?', 'err'); })
+      .finally(function () { b.disabled = false; b.textContent = 'Scan for new images'; });
+  });
+
+  pivotModeSel.addEventListener('change', function () {
+    pivotDirty = true;
+    epsWrap.style.display = pivotModeSel.value === 'PIVOT_GREEDY' ? '' : 'none';
+  });
+  pivotEps.addEventListener('input', function () {
+    pivotDirty = true;
+    epsVal.textContent = parseFloat(pivotEps.value).toFixed(2);
+  });
+
+  $('btnApplyPivot').addEventListener('click', function () {
+    var keys = Array.from(selSet);
+    var mode = pivotModeSel.value;
+    if (mode === 'NONE') { toast('Select a pivot mode (RR or Greedy)', 'err'); return; }
+    if (keys.length < 1) { toast('Select at least 1 image (checkbox)', 'err'); return; }
+    var body = { keys: keys, mode: mode, epsilon: parseFloat(pivotEps.value) || 0 };
+    post('/pivot', body).then(function () {
+      lastAppliedMode = mode; pivotDirty = false;
+      toast('Pivot active: ' + mode + ' on ' + keys.length + ' images', 'pivot');
+    }).catch(function () { toast('Pivot request failed', 'err'); });
+  });
+
+  $('btnClearPivot').addEventListener('click', function () {
+    post('/pivot/clear').then(function () {
+      lastAppliedMode = 'NONE'; pivotDirty = false;
+      toast('Pivot cleared', 'pivot');
+    }).catch(function () { toast('Clear pivot failed', 'err'); });
+  });
+
+  pivotBanner.addEventListener('click', function () {
+    post('/pivot/clear').then(function () { lastAppliedMode = 'NONE'; pivotDirty = false; })
+      .catch(function () { toast('Clear pivot failed', 'err'); });
+  });
+
+  feedToggle.addEventListener('click', function () {
+    setFeedMode(feedMode === 'compact' ? 'expanded' : 'compact');
+  });
+
+  // ---------- table interactions (delegated) ----------
+  tbody.addEventListener('change', function (e) {
+    var cb = e.target.closest('input[type=checkbox]');
+    if (!cb) return;
+    var key = decodeURIComponent(cb.dataset.key);
+    if (cb.checked) selSet.add(key); else selSet.delete(key);
+    var tr = cb.closest('tr');
+    if (tr) tr.classList.toggle('selected', cb.checked);
+  });
+
+  tbody.addEventListener('click', function (e) {
+    var del = e.target.closest('.del-btn');
+    if (del) {
+      e.stopPropagation();
+      openElim(decodeURIComponent(del.dataset.key));
+      return;
+    }
+    var rev = e.target.closest('.revive-btn');
+    if (rev) {
+      e.stopPropagation();
+      var rkey = decodeURIComponent(rev.dataset.key);
+      post('/revive', { key: rkey, hold: true }).then(function () {
+        toast('↺ Revived — held alive (📌). Click the pin to release.', 'ok');
+      }).catch(function () { toast('Revive failed', 'err'); });
+      return;
+    }
+    var hb = e.target.closest('.hold-badge');
+    if (hb) {
+      e.stopPropagation();
+      var hkey = decodeURIComponent(hb.dataset.key);
+      post('/unhold', { key: hkey }).then(function () {
+        toast('📌 Hold released — stays in unless it earns elimination', '');
+      }).catch(function () { toast('Unhold failed', 'err'); });
+      return;
+    }
+    var name = e.target.closest('.img-name');
+    if (name) {
+      e.preventDefault();
+      window.open(imgUrl(decodeURIComponent(name.dataset.key)), '_blank');
+    }
+  });
+
+  // CI tooltip
+  tbody.addEventListener('mouseover', function (e) {
+    var cell = e.target.closest('.ci-cell');
+    if (!cell) return;
+    var key = decodeURIComponent(cell.dataset.key);
+    if (!state || !state.ranking) return;
+    var row = null;
+    for (var i = 0; i < state.ranking.length; i++) {
+      if (state.ranking[i].key === key) { row = state.ranking[i]; break; }
+    }
+    if (!row) return;
+    tooltip.innerHTML =
+      '<span class="tt-dim">θ</span> ' + row.theta.toFixed(3) +
+      ' &nbsp; <span class="tt-dim">CI</span> [' + row.ci_lower.toFixed(3) + ', ' + row.ci_upper.toFixed(3) + ']' +
+      ' &nbsp; <span class="tt-dim">±</span> ' + row.ci.toFixed(3);
+    tooltip.style.opacity = '1';
+    var t = tooltip;
+    var move = function (ev) {
+      var x = ev.clientX + 14, y = ev.clientY + 14;
+      if (x + t.offsetWidth > window.innerWidth) x = ev.clientX - t.offsetWidth - 10;
+      if (y + t.offsetHeight > window.innerHeight) y = ev.clientY - t.offsetHeight - 10;
+      t.style.left = x + 'px'; t.style.top = y + 'px';
+    };
+    cell._move = move;
+    document.addEventListener('mousemove', move);
+  });
+  tbody.addEventListener('mouseout', function (e) {
+    var cell = e.target.closest('.ci-cell');
+    if (!cell) return;
+    tooltip.style.opacity = '0';
+    if (cell._move) { document.removeEventListener('mousemove', cell._move); cell._move = null; }
+  });
+
+  // ---------- sorting headers ----------
+  document.querySelectorAll('thead th.sortable').forEach(function (th) {
+    th.addEventListener('click', function () {
+      var k = th.dataset.sort;
+      if (sortKey === k) { sortDir = -sortDir; }
+      else { sortKey = k; sortDir = (k === 'name' || k === 'phase') ? 1 : -1; }
+      document.querySelectorAll('thead th .arrow').forEach(function (a) { a.textContent = ''; });
+      th.querySelector('.arrow').textContent = sortDir === -1 ? ' ▼' : ' ▲';
+      if (state) renderTable(state.ranking || []);
+    });
+  });
+
+  // ---------- elimination modal ----------
+  $('elimConfirm').addEventListener('click', function () {
+    if (!pendingElimKey) return;
+    var key = pendingElimKey;
+    var b = this; b.disabled = true;
+    post('/eliminate', { key: key }).then(function () {
+      hideOverlay(elimOverlay);
+      selSet.delete(key);
+      toast('Eliminated player', 'ok');
+      pendingElimKey = null;
+    }).catch(function () {
+      toast('Elimination failed (already eliminated?)', 'err');
+      hideOverlay(elimOverlay);
+      pendingElimKey = null;
+    }).finally(function () { b.disabled = false; });
+  });
+  $('elimCancel').addEventListener('click', function () { hideOverlay(elimOverlay); pendingElimKey = null; });
+
+  // ---------- confirm modal ----------
+  $('confirmOk').addEventListener('click', function () {
+    hideOverlay(confirmOverlay);
+    var cb = confirmCb; confirmCb = null;
+    if (cb) cb();
+  });
+  $('confirmCancel').addEventListener('click', function () { hideOverlay(confirmOverlay); confirmCb = null; });
+
+  // click outside card = cancel
+  [elimOverlay, confirmOverlay].forEach(function (ov) {
+    ov.addEventListener('mousedown', function (e) {
+      if (e.target === ov) { hideOverlay(ov); pendingElimKey = null; confirmCb = null; }
+    });
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      hideOverlay(elimOverlay); hideOverlay(confirmOverlay);
+      pendingElimKey = null; confirmCb = null;
+      hideGraphCard();
+      if (graphActive && state) drawGraph(0);
+    }
+  });
+
+  // ---------- go ----------
+  setFeedMode(feedMode);
+  // initial sort indicator (default: θ descending)
+  document.querySelector('thead th[data-sort="theta"] .arrow').textContent = ' ▼';
+  schedulePoll(0);
+})();
+</script>
+</body>
+</html>

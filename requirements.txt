@@ -1,0 +1,8 @@
+# Core
+pillow>=10.0.0
+requests>=2.32.0
+
+# Live dashboard (src/arena.py serves it; arena works without, with a warning)
+fastapi>=0.115.0
+uvicorn>=0.30.0
+httpx>=0.27.0
