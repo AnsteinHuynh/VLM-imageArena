@@ -8,6 +8,8 @@ REM put `set "PY=<path>"` in _local_paths.bat (gitignored) -- otherwise the
 REM system python on PATH is used.
 if exist "%~dp0_local_paths.bat" call "%~dp0_local_paths.bat"
 if not defined PY set "PY=python"
+REM --no-pause: suppress the trailing pauses when chained (install.bat).
+if /i "%~1"=="--no-pause" set "NOPAUSE=1"
 
 echo ========================================
 echo   VLM-imageArena -- first-time setup
@@ -31,18 +33,18 @@ if errorlevel 1 goto :err
 echo.
 echo [setup] DONE. Next steps:
 echo.
-echo   1. copy src\config_local.example.py  src\config_local.py
-echo      then edit it: set JUDGE_SERVER_EXE, LLAMA_ARG_MODEL and
-echo      LLAMA_ARG_MMPROJ to your llama-server build + model files.
+echo   1. install.bat                (downloads llama.cpp into llamacpp\ and
+echo      wires JUDGE_SERVER_EXE; you still point LLAMA_ARG_MODEL and
+echo      LLAMA_ARG_MMPROJ at your GGUFs in src\config_local.py)
 echo   2. put candidate images into  in\
 echo   3. start_judge.bat            (judge server, waits for health)
 echo   4. start_arena.bat            (dashboard at http://127.0.0.1:8843)
 echo.
-pause
+if not defined NOPAUSE pause
 exit /b 0
 
 :err
 echo.
 echo [setup] FAILED -- see the messages above.
-pause
+if not defined NOPAUSE pause
 exit /b 1

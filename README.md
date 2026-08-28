@@ -29,19 +29,24 @@ Windows-only, the Python core is cross-platform.
 :: 1. install (creates .venv and installs requirements)
 setup.bat
 
-:: 2. point the arena at YOUR model files
-copy src\config_local.example.py  src\config_local.py
+:: 2. get a llama-server build — auto-downloads the latest Windows llama.cpp
+::    release into llamacpp\ (picks CUDA/Vulkan/CPU for your GPU), then wires
+::    JUDGE_SERVER_EXE in src\config_local.py for you. Skip this step and
+::    point JUDGE_SERVER_EXE at an existing llama-server if you have one.
+install.bat
+
+:: 3. point the arena at YOUR model files
 ::    ...then edit src\config_local.py:
-::       JUDGE_SERVER_EXE  = path to llama-server.exe
 ::       LLAMA_ARG_MODEL   = path to your model GGUF
 ::       LLAMA_ARG_MMPROJ  = path to the mmproj GGUF
 ::    (this file is gitignored — your paths never leave your machine)
+::    Note: llama.cpp ships no models — the GGUFs stay a manual download.
 
-:: 3. drop candidate images into  in\        (png / jpg / webp)
+:: 4. drop candidate images into  in\        (png / jpg / webp)
 
-start_judge.bat   :: 4. judge server — prints READY when healthy (Ctrl+C stops)
+start_judge.bat   :: 5. judge server — prints READY when healthy (Ctrl+C stops)
 
-start_arena.bat   :: 5. dashboard → http://127.0.0.1:8843
+start_arena.bat   :: 6. dashboard → http://127.0.0.1:8843
 ```
 
 In the browser: **create a tourney → upload/pick images → press resume.**
@@ -158,6 +163,8 @@ Hard-won findings from running this arena, each written up in `docs/`:
 
 ```
 setup.bat          one-time: creates .venv + installs requirements
+install.bat        one-time: downloads latest llama.cpp into llamacpp\ + wires config_local
+update.bat         updates the repo (git pull --ff-only) + the llama.cpp build
 start_judge.bat    llama-server up + health-wait      (edit src/config_local.py first)
 start_arena.bat    arena + dashboard at :8843          (the UI — create tourneys here)
 start_tourney.bat  arena run with CLI flags            (--tourney NAME --dry-run --no-dashboard)

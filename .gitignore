@@ -21,6 +21,9 @@ venv/
 # --- local machine overrides for the .bat launchers ---
 _local_paths.bat
 
+# --- llama.cpp install (auto-download via install.bat, hundreds of MB) ---
+llamacpp/
+
 # --- OS cruft ---
 .DS_Store
 Thumbs.db
