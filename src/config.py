@@ -1,12 +1,12 @@
 """
 VLM-imageArena configuration — ALL tunables live here.
-Version: 2.9.0 (local machine overrides via config_local.py)
+Version: 2.10.0 (tiered judge-server flag catalog; local overrides via config_local.py)
 """
 
 import re
 from pathlib import Path
 
-VERSION = "2.9.0"
+VERSION = "2.10.0"
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -127,9 +127,53 @@ JUDGE_READY_TIMEOUT = 300         # max seconds to wait for the health endpoint 
 ARENA_CONCURRENCY = 2   ## 4; was 12
 LLAMA_ARG_N_PARALLEL = 2  ## 4 ; was 12
 
+# Threads per llama-server worker pool. None = auto (os.cpu_count() at launch;
+# was hardcoded 8 for the old 35B box). Override in config_local.py.
+LLAMA_ARG_THREADS = None
 
 LLAMA_ARG_IMAGE_MAX_TOKENS = None # None = model default.
 JUDGE_WEBUI = True   # 2026-08-14: serve llama-server's built-in web UI at http://127.0.0.1:9932 for PERSONAL manual testing (chat + upload images in browser). Was --no-webui. Harmless for arena runs; flip False to return to headless.
+
+# ---------------------------------------------------------------------------
+# Judge-server flag catalog (consumed by src/judge_server.py)
+# ---------------------------------------------------------------------------
+# llama.cpp renames/removes flags between builds, and this repo now runs on
+# whatever build install_llamacpp.py fetched, on any OS/backend. So instead of
+# a hardcoded command line, judge_server.py probes `llama-server --help` at
+# launch and filters this catalog. Tiers:
+#   "critical" — arena-protocol dependency; if the build doesn't list it, the
+#                launch FAILS LOUDLY (silently losing it would corrupt votes:
+#                --jinja gates the multimodal media-marker fix, gotcha 1)
+#   "tuned"    — measured sweet spot (VRAM/latency, b10679-era); dropped with
+#                a WARNING when unsupported
+#   "optional" — polish/audit extras; dropped with a note when unsupported
+# Structural flags are NOT cataloged — judge_server.py always emits them:
+# --model / --mmproj / --port / --threads* (LLAMA_ARG_THREADS or cpu count) /
+# --parallel (LLAMA_ARG_N_PARALLEL; slot pinning is not optional either) /
+# --image-max-tokens & --no-webui (conditional).
+# Old draft-model thread flags were removed: pointless with --spec-type none.
+# config_local.py may replace this whole list (ALL_CAPS override rules apply).
+JUDGE_SERVER_FLAGS = [
+    # flag                      value   tier
+    ("--jinja",                 None,   "critical"),  # gotcha 1: multimodal media markers need the Jinja path
+    ("--ctx-size",              "6144", "tuned"),     # partitions per slot; 2-image query ≈1250 tok @ 589,824 px
+    ("--n-gpu-layers",          "99",   "tuned"),     # offload all layers (CUDA/Vulkan/ROCm/Metal alike)
+    ("--batch-size",            "4096", "tuned"),
+    ("--ubatch-size",           "4096", "tuned"),
+    ("--flash-attn",            "on",   "tuned"),
+    ("--mtmd-batch-max-tokens", "2048", "tuned"),
+    ("--cache-prompt",          None,   "optional"),  # per-slot prompt cache — the pinned-slot protocol exploits this
+    ("--cache-reuse",           "2048", "optional"),  # KV shift; measured NO-OP for multimodal, harmless
+    ("--keep",                  "-1",   "optional"),
+    ("--cache-ram",             "8192", "optional"),
+    ("--props",                 None,   "optional"),
+    ("--metrics",               None,   "optional"),
+    ("--slots",                 None,   "optional"),
+    ("--spec-type",             "none", "optional"),
+    ("--reasoning",             "off",  "optional"),  # reflex mode (2026-08-15 experiments: no vote-quality gain otherwise)
+    ("--poll-batch",            "1",    "optional"),
+    ("--no-warmup",             None,   "optional"),
+]
 
 # ---------------------------------------------------------------------------
 # Image preparation

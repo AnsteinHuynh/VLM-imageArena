@@ -55,13 +55,21 @@ a match feed showing every individual vote, pivot/hold controls, graceful
 stop. Restarting anything is safe: the arena replays `battles.jsonl` and
 continues exactly where it stopped.
 
-Prefer plain commands? Skip the bats entirely:
+Prefer plain commands? Skip the bats entirely (this is also the **Linux/macOS
+path** — the Python core is cross-platform):
 
 ```bash
 python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # Windows
-python -m src.judge_server            # judge first
+python src/install_llamacpp.py        # fetch llama.cpp into llamacpp/ (Win/Linux/macOS)
+python -m src.judge_server            # judge first (auto-resolves the llamacpp/ binary)
 python -m src.arena --tourney mytest  # then the arena (also: --dry-run, --no-dashboard)
 ```
+
+The judge binary is resolved automatically: explicit `JUDGE_SERVER_EXE` in
+`config_local.py` → the `llamacpp/` install manifest → `llamacpp/` scan →
+`PATH`. Unsupported llama-server flags are dropped at launch by a `--help`
+compat shim, so the arena runs whatever build the installer fetched, on
+NVIDIA (CUDA), AMD (Vulkan/ROCm), Apple Silicon (Metal), or CPU.
 
 Sanity-check a new judge before an arena run — exact arena query path, shows
 vote variance and position bias:
@@ -171,13 +179,15 @@ start_tourney.bat  arena run with CLI flags            (--tourney NAME --dry-run
 manual_test.bat    judge sanity harness                (IMG1 IMG2 --seeds N --swap)
 src/
   arena.py         orchestrator + FastAPI dashboard server
-  config.py        ALL tunables (paths, sampling, stop rules, server flags)
+  config.py        ALL tunables (paths, sampling, stop rules, tiered server-flag catalog)
   config_local.example.py   copy to config_local.py → your machine's paths (gitignored)
   judge.py         llama-server client: strict A/B vote parsing + audit
-  judge_server.py  llama-server launcher (pre-flight checks, health wait)
+  judge_server.py  llama-server launcher (binary auto-resolution, --help flag shim, health wait)
+  server_resolve.py  finds the llama-server binary: config_local → llamacpp/ manifest → scan → PATH
   images.py        total-pixel normalization → PNG data URLs + disk mirror
   bt_model.py      Bradley-Terry MLE (Zermelo) + Fisher/bootstrap CIs
   scheduler.py     per-image phases: round-robin → ε-greedy
+  install_llamacpp.py  downloads/updates llama.cpp into llamacpp/ (Win/Linux/macOS, GPU-aware)
   static/          dashboard.html + launcher.html (no build step)
   prompts.json     judge question phrasings
 tests/             manual smoke scripts (run directly; pytest-excluded)
