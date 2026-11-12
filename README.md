@@ -15,6 +15,24 @@ VLM act as a pairwise image judge?** — including everything that goes wrong on
 the way (position bias, blind judges, ties, and the hidden cost of cold
 vision-encodes).
 
+## Features
+
+- **Adaptive scheduler** — round-robin warm-up, then ε-greedy pairing that
+  targets the most informative (murkiest) matchups
+- **Bradley-Terry MLE ranking** with Fisher-information confidence intervals,
+  fitted incrementally per query — Elo's path-dependence done away with
+- **Order-bias cancellation** — every game runs both image orders; verdicts
+  credit the image, not the letter
+- **Pinned-slot warm caching** — repeat queries skip the ~1.1 s cold
+  vision-encode (~5× speedup on llama.cpp per-slot prompt caches)
+- **Four statistical stop rules** (unanimous, gap gate, SE floor, rep cap) so
+  decisive pairs finish fast and true ties are called honestly
+- **Crash-safe by construction** — append-only `battles.jsonl`; restarts
+  replay the log and continue, seeds never re-fire
+- **Live dashboard** at `:8843` — θ ranking, CIs, match feed, pivot/hold
+- **Judge sanity harness** (`manual_test`) — vote variance + position bias
+  check before you trust a judge
+
 ---
 
 ## Quick start (first ranking in ~5 minutes)
