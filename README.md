@@ -148,19 +148,17 @@ CI overlaps the leader's: statistically tied, not ranked below.
 
 ## Research notes
 
-Hard-won findings from running this arena, each written up in `docs/`:
+Hard-won findings from running this arena (full write-ups live in the local
+`docs/` folder, which is gitignored — kept private by design):
 
 - **Two adjacent images in one chat message get silently dropped** by
   llama-server + Qwen3-VL (Jinja path) — the judge answers as if only one
   image exists. Each image must go in its own user message.
-  → [docs/multimodal-two-images-in-one-message.md](docs/multimodal-two-images-in-one-message.md)
 - **The KV cache is not shared, but the prompt cache is** — `--cache-reuse` is
   a no-op for multimodal, while per-slot prompt pinning gives a 5× speedup.
-  → [docs/game-protocol-pinned-slots.md](docs/game-protocol-pinned-slots.md)
 - **Judges have taste.** Position bias (measured γ ≈ +0.44 on one judge),
   quant-dependent verdict drift, and honest tie rates that only emerge once
   early-exit bugs are fixed — all documented.
-  → [docs/history-hsp.md](docs/history-hsp.md)
 - **webp data-URIs are silently dropped** by llama-server; the pipeline is
   PNG-mandatory by design.
 
@@ -209,18 +207,15 @@ src/
   static/          dashboard.html + launcher.html (no build step)
   prompts.json     judge question phrasings
 tests/             manual smoke scripts (run directly; pytest-excluded)
-docs/              design docs + research findings (table below)
+docs/              design docs + research findings (local-only, gitignored)
 in/  out/          your images / results — gitignored, never committed
 ```
 
 ## Docs
 
-| Doc | What's in it |
-|---|---|
-| [glossary.md](docs/glossary.md) | every term (query, vote, variant, rep, θ, SE, gate) mapped to code |
-| [game-protocol-pinned-slots.md](docs/game-protocol-pinned-slots.md) | the protocol design: variants, slot pinning, latency tiers, stop rules |
-| [multimodal-two-images-in-one-message.md](docs/multimodal-two-images-in-one-message.md) | probe-verified llama.cpp multimodal quirk + workarounds |
-| [history-hsp.md](docs/history-hsp.md) | archived research log of the original arena: blindness bug, order bias, benchmarks |
+Design docs and the full research write-ups (glossary, game protocol,
+llama.cpp multimodal findings, the original arena's research log) live in the
+local `docs/` folder — gitignored, kept out of the public repo on purpose.
 
 ## Limitations
 
