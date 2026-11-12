@@ -28,3 +28,6 @@ llamacpp/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# --- private design/research docs (kept local) ---
+docs/
