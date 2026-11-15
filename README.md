@@ -1,7 +1,7 @@
 # VLM-imageArena
 
 **An adaptive A/B image-ranking arena powered by a local VLM judge.**
-Put N candidate images in a folder — a vision-language model compares them pair
+Put N candidate images in a folder: a vision-language model compares them pair
 by pair ("which is better?"), an adaptive scheduler picks the most informative
 matchups, and a **Bradley-Terry maximum-likelihood** fit turns the vote log into
 a statistically-grounded ranking with confidence intervals.
@@ -11,26 +11,25 @@ a statistically-grounded ranking with confidence intervals.
 ![llama.cpp](https://img.shields.io/badge/judge-llama__server-orange)
 
 Built as a research vehicle for the question: **how reliably can a small local
-VLM act as a pairwise image judge?** — including everything that goes wrong on
-the way (position bias, blind judges, ties, and the hidden cost of cold
-vision-encodes).
+VLM act as a pairwise image judge?** measuring position bias, blind judges,
+tie rates, and cold vision-encode cost.
 
 ## Features
 
-- **Adaptive scheduler** — round-robin warm-up, then ε-greedy pairing that
+- **Adaptive scheduler**: round-robin warm-up, then ε-greedy pairing that
   targets the most informative (murkiest) matchups
 - **Bradley-Terry MLE ranking** with Fisher-information confidence intervals,
-  fitted incrementally per query — Elo's path-dependence done away with
-- **Order-bias cancellation** — every game runs both image orders; verdicts
+  fitted incrementally per query: no Elo path dependence
+- **Order-bias cancellation**: every game runs both image orders; verdicts
   credit the image, not the letter
-- **Pinned-slot warm caching** — repeat queries skip the ~1.1 s cold
+- **Pinned-slot warm caching**: repeat queries skip the ~1.1 s cold
   vision-encode (~5× speedup on llama.cpp per-slot prompt caches)
 - **Four statistical stop rules** (unanimous, gap gate, SE floor, rep cap) so
-  decisive pairs finish fast and true ties are called honestly
-- **Crash-safe by construction** — append-only `battles.jsonl`; restarts
+  decisive pairs finish fast and true ties are declared at the SE floor
+- **Crash-safe by construction**: append-only `battles.jsonl`; restarts
   replay the log and continue, seeds never re-fire
-- **Live dashboard** at `:8843` — θ ranking, CIs, match feed, pivot/hold
-- **Judge sanity harness** (`manual_test`) — vote variance + position bias
+- **Live dashboard** at `:8843`: θ ranking, CIs, match feed, pivot/hold
+- **Judge sanity harness** (`manual_test`): vote variance + position bias
   check before you trust a judge
 
 ---
@@ -38,16 +37,16 @@ vision-encodes).
 ## Quick start (first ranking in ~5 minutes)
 
 **You need:** Python 3.11+ and a [llama.cpp](https://github.com/ggml-org/llama.cpp/tree/master/tools/server)
-`llama-server` build with a **multimodal** model — a main GGUF *plus* its
+`llama-server` build with a **multimodal** model: a main GGUF *plus* its
 `mmproj` vision encoder (any Qwen3-VL-family model works; that's what this was
-developed against). Developed on Windows — the `.bat` launchers are
+developed against). Developed on Windows: the `.bat` launchers are
 Windows-only, the Python core is cross-platform.
 
 ```bat
 :: 1. install (creates .venv and installs requirements)
 setup.bat
 
-:: 2. get a llama-server build — auto-downloads the latest Windows llama.cpp
+:: 2. get a llama-server build: auto-downloads the latest Windows llama.cpp
 ::    release into llamacpp\ (picks CUDA/Vulkan/CPU for your GPU), then wires
 ::    JUDGE_SERVER_EXE in src\config_local.py for you. Skip this step and
 ::    point JUDGE_SERVER_EXE at an existing llama-server if you have one.
@@ -57,24 +56,24 @@ install.bat
 ::    ...then edit src\config_local.py:
 ::       LLAMA_ARG_MODEL   = path to your model GGUF
 ::       LLAMA_ARG_MMPROJ  = path to the mmproj GGUF
-::    (this file is gitignored — your paths never leave your machine)
-::    Note: llama.cpp ships no models — the GGUFs stay a manual download.
+::    (this file is gitignored; your paths never leave your machine)
+::    Note: llama.cpp ships no models: the GGUFs stay a manual download.
 
 :: 4. drop candidate images into  in\        (png / jpg / webp)
 
-start_judge.bat   :: 5. judge server — prints READY when healthy (Ctrl+C stops)
+start_judge.bat   :: 5. judge server: prints READY when healthy (Ctrl+C stops)
 
 start_arena.bat   :: 6. dashboard → http://127.0.0.1:8843
 ```
 
 In the browser: **create a tourney → upload/pick images → press resume.**
-The dashboard is the whole UI — live θ ranking with confidence intervals,
+The dashboard is the whole UI: live θ ranking with confidence intervals,
 a match feed showing every individual vote, pivot/hold controls, graceful
 stop. Restarting anything is safe: the arena replays `battles.jsonl` and
 continues exactly where it stopped.
 
 Prefer plain commands? Skip the bats entirely (this is also the **Linux/macOS
-path** — the Python core is cross-platform):
+path**, the Python core is cross-platform):
 
 ```bash
 python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # Windows
@@ -89,7 +88,7 @@ The judge binary is resolved automatically: explicit `JUDGE_SERVER_EXE` in
 compat shim, so the arena runs whatever build the installer fetched, on
 NVIDIA (CUDA), AMD (Vulkan/ROCm), Apple Silicon (Metal), or CPU.
 
-Sanity-check a new judge before an arena run — exact arena query path, shows
+Sanity-check a new judge before an arena run: exact arena query path, shows
 vote variance and position bias:
 
 ```bash
@@ -97,7 +96,7 @@ python -m src.manual_test imgA.png imgB.png --seeds 8 --swap
 ```
 
 All tunables (sampling params, stop-rule constants, pixel budget, judge
-prompt) live in **`src/config.py`** with rationale comments — your machine's
+prompt) live in **`src/config.py`** with rationale comments: your machine's
 paths and any overrides go in the gitignored **`src/config_local.py`**.
 
 ## How it works
@@ -113,8 +112,8 @@ flowchart LR
 ```
 
 - **Every query is logged** to `battles.jsonl` (prompt, seed, image order, raw
-  reply, cached-token count). Restart = deterministic replay of the log —
-  nothing is ever lost.
+  reply, cached-token count). Restart = deterministic replay of the log:
+  nothing is ever discarded.
 - **Order bias is measured, not assumed.** Each game fires both image orders;
   verdicts credit the *image*, not the letter, so the judge's A/B preference
   cancels out.
@@ -130,10 +129,10 @@ instead of a **cold** ~1,124 ms vision re-encode. A "game" is one image pair:
 its variants are pinned one per slot, votes update Bradley-Terry *per query*,
 and four stop rules end the game:
 
-1. **Unanimous** — one image took every vote so far (decisive pairs cost ~2 queries).
-2. **Gap gate** — |Δθ| > 2.5 × SE(gap) (≈95%, corrected for sequential peeking).
-3. **SE floor** — SE(gap) shrunk below 0.15 and *still* undecided → honest tie.
-4. **Rep cap** — 64 repeats per variant, as backstop.
+1. **Unanimous**: one image took every vote so far (decisive pairs cost ~2 queries).
+2. **Gap gate**: |Δθ| > 2.5 × SE(gap) (≈95%, corrected for sequential peeking).
+3. **SE floor**: SE(gap) shrunk below 0.15 and *still* undecided → a declared tie.
+4. **Rep cap**: 64 repeats per variant, as backstop.
 
 Pair selection: round-robin first (everyone plays everyone), then **ε-greedy**
 (90% most-informative pair, 10% random) for the murky leftovers.
@@ -141,30 +140,30 @@ Pair selection: round-robin first (everyone plays everyone), then **ε-greedy**
 ### Rating: Bradley-Terry MLE, not Elo
 
 All decisive votes are fit *simultaneously* by Zermelo iteration
-(`src/bt_model.py`) — order-independent, no path dependency. Confidence
+(`src/bt_model.py`): order-independent, no path dependency. Confidence
 intervals come from the Fisher information (deterministic, fast); bootstrap
 CIs are available for small samples. The dashboard marks an image "≈" when its
 CI overlaps the leader's: statistically tied, not ranked below.
 
 ## Research notes
 
-Hard-won findings from running this arena (full write-ups live in the local
-`docs/` folder, which is gitignored — kept private by design):
+Findings from running this arena (full write-ups live in a private `docs/`
+folder):
 
 - **Two adjacent images in one chat message get silently dropped** by
-  llama-server + Qwen3-VL (Jinja path) — the judge answers as if only one
+  llama-server + Qwen3-VL (Jinja path): the judge answers as if only one
   image exists. Each image must go in its own user message.
-- **The KV cache is not shared, but the prompt cache is** — `--cache-reuse` is
+- **The KV cache is not shared, but the prompt cache is**: `--cache-reuse` is
   a no-op for multimodal, while per-slot prompt pinning gives a 5× speedup.
-- **Judges have taste.** Position bias (measured γ ≈ +0.44 on one judge),
-  quant-dependent verdict drift, and honest tie rates that only emerge once
-  early-exit bugs are fixed — all documented.
+- Position bias (measured γ ≈ +0.44 on one judge), quant-dependent verdict
+  drift, and tie rates that only emerge once early-exit bugs are fixed: all
+  documented.
 - **webp data-URIs are silently dropped** by llama-server; the pipeline is
   PNG-mandatory by design.
 
 ## Data & reproducibility
 
-`out/{tourney}/battles.jsonl` — one JSON line per game (append-only):
+`out/{tourney}/battles.jsonl`: one JSON line per game (append-only):
 
 ```json
 {"game": 475, "pair": ["a.png", "b.png"], "first": "a.png", "second": "b.png",
@@ -178,7 +177,7 @@ Hard-won findings from running this arena (full write-ups live in the local
 - `game: null` + `tie: true` = statistical tie (SE-floor); `early: true` = a
   stop rule fired before the rep cap.
 - `tokens_cached` per query is the audit trail for warm-cache hits.
-- Seeds are sequential and resume from the log's query count — a restart never
+- Seeds are sequential and resume from the log's query count: a restart never
   re-fires an old `(prompt, seed)` pair.
 - Any change of judge model, quant, or voting mode invalidates comparisons:
   start a fresh tourney rather than mixing regimes in one log.
@@ -190,7 +189,7 @@ setup.bat          one-time: creates .venv + installs requirements
 install.bat        one-time: downloads latest llama.cpp into llamacpp\ + wires config_local
 update.bat         updates the repo (git pull --ff-only) + the llama.cpp build
 start_judge.bat    llama-server up + health-wait      (edit src/config_local.py first)
-start_arena.bat    arena + dashboard at :8843          (the UI — create tourneys here)
+start_arena.bat    arena + dashboard at :8843          (the UI: create tourneys here)
 start_tourney.bat  arena run with CLI flags            (--tourney NAME --dry-run --no-dashboard)
 manual_test.bat    judge sanity harness                (IMG1 IMG2 --seeds N --swap)
 src/
@@ -208,25 +207,25 @@ src/
   prompts.json     judge question phrasings
 tests/             manual smoke scripts (run directly; pytest-excluded)
 docs/              design docs + research findings (local-only, gitignored)
-in/  out/          your images / results — gitignored, never committed
+in/  out/          your images / results: gitignored, never committed
 ```
 
 ## Docs
 
 Design docs and the full research write-ups (glossary, game protocol,
-llama.cpp multimodal findings, the original arena's research log) live in the
-local `docs/` folder — gitignored, kept out of the public repo on purpose.
+llama.cpp multimodal findings, the original arena's research log) live in a
+private `docs/` folder.
 
 ## Limitations
 
 - One judge at a time (a single llama-server); no human voting mode yet.
 - Windows-first: launchers are `.bat`, paths tested on Windows.
-- Ties are real: with honest stop rules, genuinely indistinguishable pairs
-  *should* end as ties — the SE floor keeps them from grinding to the cap.
+- Ties are real: with stop rules, genuinely indistinguishable pairs
+  *should* end as ties; the SE floor keeps them from grinding to the cap.
 
 ## License & citation
 
-MIT — see [LICENSE](LICENSE). To cite:
+MIT; see [LICENSE](LICENSE). To cite:
 
 ```bibtex
 @software{vlm_imagearena_2026,
